@@ -1,15 +1,52 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { SectionHeading, Stagger, StaggerItem } from "@/components/motion/reveal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { COUNTRIES, PLAYERS, FIXTURES, type Player } from "@/lib/data";
+import { COUNTRIES, PLAYERS, FIXTURES, type Player, type Confederation } from "@/lib/data";
 
-function FixtureRow({ index }: { index: number }) {
-  const f = FIXTURES[index];
-  const date = new Date(f.kickoff);
-  const when = date.toLocaleString("en-US", {
+// ─── shared filter pill ───────────────────────────────────────────────────────
+
+function FilterPills<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { label: string; value: T }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          onClick={() => onChange(o.value)}
+          className={`rounded-full px-4 py-1.5 text-[0.7rem] uppercase tracking-[0.18em] font-medium transition-all cursor-pointer ${
+            value === o.value
+              ? "bg-gold text-midnight"
+              : "border border-frost/20 text-frost/55 hover:border-frost/45 hover:text-frost"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── fixtures tab ─────────────────────────────────────────────────────────────
+
+type GroupFilter = "All" | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L";
+
+const GROUP_OPTIONS: { label: string; value: GroupFilter }[] = [
+  { label: "All", value: "All" },
+  ...("ABCDEFGHIJKL".split("").map((g) => ({ label: `Group ${g}`, value: g as GroupFilter }))),
+];
+
+function FixtureRow({ fixture }: { fixture: (typeof FIXTURES)[number] }) {
+  const when = new Date(fixture.kickoff).toLocaleString("en-US", {
     month: "short",
     day: "numeric",
     hour: "numeric",
@@ -18,63 +55,135 @@ function FixtureRow({ index }: { index: number }) {
   });
 
   return (
-    <StaggerItem>
-      <motion.div
-        whileHover={{ scale: 1.015 }}
-        transition={{ type: "spring", stiffness: 320, damping: 24 }}
-        className="glass rounded-2xl px-5 py-5 md:px-8 md:py-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3"
-      >
-        <div className="flex items-center justify-end gap-3 text-right">
-          <span className="font-medium text-frost text-sm md:text-lg">{f.home.name}</span>
-          <span className="text-2xl md:text-4xl">{f.home.flag}</span>
-        </div>
-        <div className="text-center px-2 md:px-6">
-          <span className="text-numeric block text-gold text-lg md:text-2xl font-medium">VS</span>
-          <span className="block text-[0.62rem] uppercase tracking-[0.18em] text-frost/45 mt-1 whitespace-nowrap">
-            {f.stage}
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-2xl md:text-4xl">{f.away.flag}</span>
-          <span className="font-medium text-frost text-sm md:text-lg">{f.away.name}</span>
-        </div>
-        <div className="col-span-3 mt-3 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 border-t border-frost/8 pt-3 text-[0.7rem] uppercase tracking-[0.16em] text-frost/40">
-          <span>{when}</span>
-          <span className="hidden md:inline">·</span>
-          <span>{f.venue}</span>
-        </div>
-      </motion.div>
-    </StaggerItem>
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -16 }}
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      whileHover={{ scale: 1.012 }}
+      className="glass rounded-2xl px-5 py-5 md:px-8 md:py-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3"
+    >
+      <div className="flex items-center justify-end gap-3 text-right">
+        <span className="font-medium text-frost text-sm md:text-base">{fixture.home.name}</span>
+        <span className="text-2xl md:text-3xl">{fixture.home.flag}</span>
+      </div>
+      <div className="text-center px-2 md:px-5">
+        <span className="text-numeric block text-gold text-base md:text-xl font-semibold">VS</span>
+        <span className="block text-[0.6rem] uppercase tracking-[0.16em] text-frost/40 mt-1 whitespace-nowrap">
+          {fixture.stage}
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-2xl md:text-3xl">{fixture.away.flag}</span>
+        <span className="font-medium text-frost text-sm md:text-base">{fixture.away.name}</span>
+      </div>
+      <div className="col-span-3 mt-2 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 border-t border-frost/8 pt-2.5 text-[0.62rem] uppercase tracking-[0.14em] text-frost/35">
+        <span>{when}</span>
+        <span className="hidden sm:inline">·</span>
+        <span>{fixture.venue}</span>
+      </div>
+    </motion.div>
   );
 }
 
-function CountryCard({ index }: { index: number }) {
-  const c = COUNTRIES[index];
+function FixturesPanel() {
+  const [group, setGroup] = React.useState<GroupFilter>("All");
+
+  const filtered = group === "All"
+    ? FIXTURES
+    : FIXTURES.filter((f) => f.stage.includes(`Group ${group}`));
+
   return (
-    <StaggerItem>
-      <motion.div
-        whileHover={{ rotateY: -7, rotateX: 4, translateZ: 16, y: -6 }}
-        transition={{ type: "spring", stiffness: 260, damping: 20 }}
-        style={{ transformStyle: "preserve-3d", perspective: 900 }}
-        className="glass group relative rounded-2xl p-6 text-center overflow-hidden"
-      >
-        <div
-          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_0%,rgba(255,214,10,0.12),transparent_70%)]"
-          aria-hidden="true"
-        />
-        <span className="block text-6xl drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)] transition-transform duration-500 group-hover:scale-110">
-          {c.flag}
-        </span>
-        <h3 className="text-display mt-4 text-2xl text-frost">{c.name}</h3>
-        <div className="mt-3 flex items-center justify-center gap-4 text-[0.68rem] uppercase tracking-[0.16em] text-frost/45">
-          <span>Rank <span className="text-numeric text-gold">#{c.fifaRank}</span></span>
-          <span>Group <span className="text-numeric text-gold">{c.group}</span></span>
-          <span>Titles <span className="text-numeric text-gold">{c.titles}</span></span>
-        </div>
-      </motion.div>
-    </StaggerItem>
+    <>
+      <FilterPills options={GROUP_OPTIONS} value={group} onChange={setGroup} />
+      <div className="grid gap-3 max-w-3xl mx-auto">
+        <AnimatePresence mode="popLayout">
+          {filtered.map((f) => (
+            <FixtureRow key={f.id} fixture={f} />
+          ))}
+        </AnimatePresence>
+        {filtered.length === 0 && (
+          <p className="text-center text-frost/35 py-10 text-sm">No fixtures yet for Group {group}.</p>
+        )}
+      </div>
+    </>
   );
 }
+
+// ─── nations tab ──────────────────────────────────────────────────────────────
+
+type ConfFilter = "All" | Confederation;
+
+const CONF_OPTIONS: { label: string; value: ConfFilter }[] = [
+  { label: "All 48", value: "All" },
+  { label: "UEFA", value: "UEFA" },
+  { label: "CONMEBOL", value: "CONMEBOL" },
+  { label: "CAF", value: "CAF" },
+  { label: "AFC", value: "AFC" },
+  { label: "CONCACAF", value: "CONCACAF" },
+  { label: "OFC", value: "OFC" },
+];
+
+function CountryCard({ country }: { country: (typeof COUNTRIES)[number] }) {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.94 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.94 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      whileHover={{ rotateY: -7, rotateX: 4, y: -6 }}
+      style={{ transformStyle: "preserve-3d", perspective: 900 }}
+      className="glass group relative rounded-2xl p-5 text-center overflow-hidden"
+    >
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_50%_0%,rgba(255,214,10,0.12),transparent_70%)]"
+        aria-hidden="true"
+      />
+      <span className="block text-5xl drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)] transition-transform duration-500 group-hover:scale-110">
+        {country.flag}
+      </span>
+      <h3 className="text-display mt-3 text-xl text-frost leading-tight">{country.name}</h3>
+      <p className="mt-1 text-[0.6rem] uppercase tracking-[0.2em] text-gold/70">
+        {country.confederation}
+      </p>
+      <div className="mt-2.5 flex items-center justify-center gap-3 text-[0.6rem] uppercase tracking-[0.14em] text-frost/40">
+        <span>Rank <span className="text-numeric text-frost/70">#{country.fifaRank}</span></span>
+        <span>Grp <span className="text-numeric text-frost/70">{country.group}</span></span>
+        {country.titles > 0 && (
+          <span>🏆 <span className="text-numeric text-gold">{country.titles}</span></span>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+function NationsPanel() {
+  const [conf, setConf] = React.useState<ConfFilter>("All");
+
+  const filtered = conf === "All"
+    ? COUNTRIES
+    : COUNTRIES.filter((c) => c.confederation === conf);
+
+  return (
+    <>
+      <FilterPills options={CONF_OPTIONS} value={conf} onChange={setConf} />
+      <motion.div layout className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 md:gap-4">
+        <AnimatePresence mode="popLayout">
+          {filtered.map((c) => (
+            <CountryCard key={c.code} country={c} />
+          ))}
+        </AnimatePresence>
+      </motion.div>
+      <p className="mt-6 text-center text-[0.62rem] uppercase tracking-[0.18em] text-frost/30">
+        {filtered.length} {conf === "All" ? "nations" : conf + " nations"} · Groups A–L · 48 total
+      </p>
+    </>
+  );
+}
+
+// ─── player card ──────────────────────────────────────────────────────────────
 
 function StatBar({ label, value }: { label: string; value: number }) {
   return (
@@ -145,37 +254,31 @@ function PlayerCard({ player }: { player: Player }) {
   );
 }
 
+// ─── section ──────────────────────────────────────────────────────────────────
+
 export function MatchCenter() {
   return (
     <section id="matches" className="relative px-6 py-28 md:py-40 bg-grid-faint">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-7xl">
         <SectionHeading
           kicker="Match Center"
-          title="Fixtures. Nations. Superstars."
-          copy="Everything you need before you lock in a prediction."
+          title="Fixtures. 48 Nations. Superstars."
+          copy="Filter by group or confederation. Lock in your call before kickoff."
         />
 
         <Tabs defaultValue="fixtures" className="flex flex-col items-center">
-          <TabsList className="mb-12">
+          <TabsList className="mb-10">
             <TabsTrigger value="fixtures">Fixtures</TabsTrigger>
-            <TabsTrigger value="nations">Nations</TabsTrigger>
+            <TabsTrigger value="nations">48 Nations</TabsTrigger>
             <TabsTrigger value="players">Star Players</TabsTrigger>
           </TabsList>
 
           <TabsContent value="fixtures" className="w-full">
-            <Stagger className="grid gap-4 max-w-3xl mx-auto">
-              {FIXTURES.map((_, i) => (
-                <FixtureRow key={FIXTURES[i].id} index={i} />
-              ))}
-            </Stagger>
+            <FixturesPanel />
           </TabsContent>
 
           <TabsContent value="nations" className="w-full">
-            <Stagger className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
-              {COUNTRIES.map((_, i) => (
-                <CountryCard key={COUNTRIES[i].code} index={i} />
-              ))}
-            </Stagger>
+            <NationsPanel />
           </TabsContent>
 
           <TabsContent value="players" className="w-full">
