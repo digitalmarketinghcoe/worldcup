@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+/.agents
+/agents copy
+/skills-lock.json
+/.agentscopy
+/.agents/skills/shadcn
+
+.node_modules
+agents copy.md

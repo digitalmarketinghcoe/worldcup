@@ -1,26 +1,185 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* HCOE World Cup palette */
+  --color-midnight: #071124;
+  --color-pitch: #020617;
+  --color-crimson: #d90429;
+  --color-gold: #ffd60a;
+  --color-turf: #00d26a;
+  --color-frost: #e2e8f0;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --color-background: var(--color-pitch);
+  --color-foreground: var(--color-frost);
+
+  --font-display: var(--font-bebas);
+  --font-sans: var(--font-inter);
+  --font-numeric: var(--font-grotesk);
+
+  --ease-smooth: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-brutal: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --animate-ticker: ticker 28s linear infinite;
+  --animate-pulse-dot: pulse-dot 1.5s ease-in-out infinite;
+  --animate-orb-drift: orb-drift 9s ease-in-out infinite alternate;
+  --animate-shimmer: shimmer 2.4s linear infinite;
+
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(1.55); }
+  }
+  @keyframes orb-drift {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(48px, -36px) scale(1.12); }
+  }
+  @keyframes shimmer {
+    from { background-position: 200% center; }
+    to { background-position: -200% center; }
   }
 }
 
+:root {
+  /* Fluid type scale */
+  --fs-hero: clamp(4rem, 13vw, 12rem);
+  --fs-title: clamp(2.5rem, 6.5vw, 5.5rem);
+  --fs-heading: clamp(1.5rem, 3vw, 2.5rem);
+  --fs-lead: clamp(1.05rem, 2vw, 1.35rem);
+  --fs-body: clamp(0.92rem, 1.5vw, 1.05rem);
+  --fs-caption: clamp(0.7rem, 1vw, 0.82rem);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-pitch);
+  color: var(--color-frost);
+  font-family: var(--font-sans);
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--color-gold);
+  color: var(--color-midnight);
+}
+
+/* ---------- Surfaces ---------- */
+
+.glass {
+  background: rgba(226, 232, 240, 0.04);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(226, 232, 240, 0.09);
+  box-shadow:
+    0 8px 32px rgba(2, 6, 23, 0.55),
+    inset 0 1px 0 rgba(226, 232, 240, 0.08);
+}
+
+.glass-gold {
+  border-color: rgba(255, 214, 10, 0.22);
+  box-shadow:
+    0 0 48px rgba(255, 214, 10, 0.07),
+    inset 0 1px 0 rgba(255, 214, 10, 0.12);
+}
+
+.glass-crimson {
+  border-color: rgba(217, 4, 41, 0.3);
+  box-shadow:
+    0 0 48px rgba(217, 4, 41, 0.1),
+    inset 0 1px 0 rgba(217, 4, 41, 0.16);
+}
+
+/* Broadcast grain — premium finish over everything */
+.noise {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+}
+
+.bg-grid-faint {
+  background-image:
+    linear-gradient(rgba(226, 232, 240, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(226, 232, 240, 0.03) 1px, transparent 1px);
+  background-size: 52px 52px;
+}
+
+/* Stadium light cones behind hero content */
+.stadium-beams {
+  background:
+    radial-gradient(ellipse 55% 42% at 18% -8%, rgba(255, 214, 10, 0.13), transparent 64%),
+    radial-gradient(ellipse 55% 42% at 82% -8%, rgba(226, 232, 240, 0.1), transparent 64%),
+    radial-gradient(ellipse 70% 52% at 50% 112%, rgba(217, 4, 41, 0.12), transparent 70%);
+}
+
+/* ---------- Typography helpers ---------- */
+
+.text-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.text-numeric {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+.text-gold-shimmer {
+  background: linear-gradient(
+    110deg,
+    #ffd60a 20%,
+    #fff7cc 40%,
+    #ffd60a 60%,
+    #b8860b 80%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: var(--animate-shimmer);
+}
+
+.text-outline {
+  -webkit-text-stroke: 1.5px rgba(226, 232, 240, 0.22);
+  color: transparent;
+}
+
+/* ---------- Motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus visibility on dark bg */
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+  border-radius: 2px;
 }

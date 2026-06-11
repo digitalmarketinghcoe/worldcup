@@ -1,0 +1,80 @@
+import { NextResponse } from "next/server";
+import { COUNTRIES, FIXTURES, PROGRAMS } from "@/lib/data";
+
+type PredictionPayload = {
+  fullName: string;
+  studentId: string;
+  program: string;
+  matchId: string;
+  pick: string;
+  champion: string;
+};
+
+function validate(body: Partial<PredictionPayload>) {
+  const errors: string[] = [];
+  const fullName = body.fullName?.trim() ?? "";
+  const studentId = body.studentId?.trim() ?? "";
+
+  if (fullName.length < 3 || fullName.length > 80) errors.push("Full name must be 3–80 characters.");
+  if (!/^[A-Za-z0-9/-]{4,20}$/.test(studentId)) errors.push("Student ID looks invalid.");
+  if (!PROGRAMS.includes(body.program ?? "")) errors.push("Unknown program.");
+
+  const fixture = FIXTURES.find((f) => f.id === body.matchId);
+  if (!fixture) errors.push("Unknown match.");
+  else if (![fixture.home.name, fixture.away.name, "Draw"].includes(body.pick ?? "")) {
+    errors.push("Pick must be one of the two teams or a draw.");
+  }
+  if (!COUNTRIES.some((c) => c.name === body.champion)) errors.push("Unknown champion pick.");
+
+  return { errors, fixture };
+}
+
+export async function POST(request: Request) {
+  let body: Partial<PredictionPayload>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false, errors: ["Invalid JSON body."] }, { status: 400 });
+  }
+
+  const { errors, fixture } = validate(body);
+  if (errors.length > 0) {
+    return NextResponse.json({ ok: false, errors }, { status: 422 });
+  }
+
+  const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
+  const record = {
+    timestamp: new Date().toISOString(),
+    fullName: body.fullName!.trim(),
+    studentId: body.studentId!.trim(),
+    program: body.program,
+    match: `${fixture!.home.name} vs ${fixture!.away.name}`,
+    pick: body.pick,
+    champion: body.champion,
+    secret: process.env.GOOGLE_SCRIPT_SECRET ?? "",
+  };
+
+  if (!scriptUrl) {
+    // Dev fallback: accept locally so the UI flow works before the sheet is wired up.
+    console.warn("GOOGLE_SCRIPT_URL not set — prediction logged locally only:", record);
+    return NextResponse.json({ ok: true, stored: "local" });
+  }
+
+  try {
+    const res = await fetch(scriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(record),
+      // Apps Script web apps respond with a 302 to the result; follow it.
+      redirect: "follow",
+    });
+    if (!res.ok) throw new Error(`Apps Script responded ${res.status}`);
+    return NextResponse.json({ ok: true, stored: "sheet" });
+  } catch (err) {
+    console.error("Prediction forwarding failed:", err);
+    return NextResponse.json(
+      { ok: false, errors: ["Could not save your prediction. Try again in a moment."] },
+      { status: 502 }
+    );
+  }
+}
