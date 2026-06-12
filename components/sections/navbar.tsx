@@ -76,7 +76,7 @@ export function Navbar() {
               alt="Himalaya College of Engineering"
               width={640}
               height={320}
-              className="h-40 w-auto"
+              className="h-42 w-auto"
               priority
             />
             <span className="hidden sm:block text-display text-base text-frost/70 group-hover:text-frost transition-colors leading-none">

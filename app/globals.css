@@ -192,3 +192,18 @@ body {
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* Trophy reveal video — responsive mask + opacity */
+.trophy-video-mask {
+  /* Mobile: show right-center portion, fade left edge */
+  mask-image: linear-gradient(to left, black 45%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to left, black 45%, transparent 100%);
+  opacity: 0.42;
+}
+@media (min-width: 640px) {
+  .trophy-video-mask {
+    mask-image: linear-gradient(to right, transparent 0%, black 38%, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 38%, black 85%, transparent 100%);
+    opacity: 0.72;
+  }
+}

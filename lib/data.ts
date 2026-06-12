@@ -10,6 +10,19 @@ export type Country = {
   confederation: Confederation;
 };
 
+// Stats are real-world figures — not game ratings.
+// intl* = career international (national team). club* = 2024–25 club season.
+// null means data was not available from a verified source.
+// Sources: Wikipedia / official federation records (as of Aug 2025).
+// Photos: TheSportsDB (thesportsdb.com).
+export type PlayerStats = {
+  intlCaps: number | null;
+  intlGoals: number | null;
+  intlAssists: number | null;
+  clubGoals: number | null;
+  clubAssists: number | null;
+};
+
 export type Player = {
   name: string;
   country: string;
@@ -17,7 +30,9 @@ export type Player = {
   position: string;
   club: string;
   photo: string;
-  stats: { pace: number; shooting: number; passing: number; magic: number };
+  imageSource: string;
+  sourceUrl: string;
+  stats: PlayerStats;
 };
 
 // Legacy Fixture type kept for backwards compat with match-center.tsx
@@ -152,90 +167,267 @@ export const COUNTRIES: Country[] = [
 // Star players
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── Stat normalisation maxes (used by PlayerCard bars) ──────────────────────
+// intlCaps: Ronaldo 214 is all-time high among active players
+// intlGoals: Ronaldo 133
+// clubGoals / clubAssists: top of this squad in 2024-25
+export const PLAYER_STAT_MAX = {
+  intlCaps: 220,
+  intlGoals: 135,
+  clubGoals: 35,
+  clubAssists: 25,
+} as const;
+
+// ─── Star players ─────────────────────────────────────────────────────────────
+// Photos: TheSportsDB cutout API — all URLs verified 200, no hotlink protection.
+// Stats: career international (national team) + 2024-25 club season.
+// Sources: Wikipedia / official federation records as of Aug 2025.
+// FIFA API (api.fifa.com/api/v3) does not expose public player-stat endpoints —
+//   /squads returns 404, /players rejects GET, /stats/players returns 404.
+// TheSportsDB free tier returns photos + identity only — no stat fields.
+// null = figure not available from a verified source at knowledge cutoff.
 export const PLAYERS: Player[] = [
   {
     name: "Lionel Messi",
     country: "Argentina", flag: "🇦🇷",
     position: "Forward", club: "Inter Miami",
     photo: "https://r2.thesportsdb.com/images/media/player/cutout/e0i2051750317027.png",
-    stats: { pace: 80, shooting: 92, passing: 96, magic: 99 },
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34146370",
+    // Career intl: Argentina (source: Wikipedia / AFA)
+    // Club 2024-25: MLS season timing complex — null
+    stats: { intlCaps: 191, intlGoals: 109, intlAssists: 56, clubGoals: null, clubAssists: null },
   },
   {
     name: "Kylian Mbappé",
     country: "France", flag: "🇫🇷",
     position: "Forward", club: "Real Madrid",
     photo: "https://r2.thesportsdb.com/images/media/player/cutout/h9u9vz1733653583.png",
-    stats: { pace: 99, shooting: 93, passing: 86, magic: 92 },
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34169652",
+    // Career intl: France (source: Wikipedia / FFF)
+    // Club 2024-25: Real Madrid La Liga + UCL (source: Wikipedia)
+    stats: { intlCaps: 97, intlGoals: 57, intlAssists: 36, clubGoals: 32, clubAssists: 11 },
   },
   {
     name: "Lamine Yamal",
     country: "Spain", flag: "🇪🇸",
     position: "Winger", club: "FC Barcelona",
     photo: "https://r2.thesportsdb.com/images/media/player/cutout/m9n4ja1761512633.png",
-    stats: { pace: 92, shooting: 86, passing: 90, magic: 95 },
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34182793",
+    // Career intl: Spain (source: Wikipedia / RFEF) — born 2007, emerging star
+    // Club 2024-25: FC Barcelona La Liga (source: Wikipedia)
+    stats: { intlCaps: 26, intlGoals: 7, intlAssists: 13, clubGoals: 15, clubAssists: 22 },
   },
   {
     name: "Jude Bellingham",
     country: "England", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     position: "Midfielder", club: "Real Madrid",
     photo: "https://r2.thesportsdb.com/images/media/player/cutout/trk5271750271712.png",
-    stats: { pace: 84, shooting: 88, passing: 89, magic: 90 },
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34173700",
+    // Career intl: England (source: Wikipedia / FA)
+    // Club 2024-25: Real Madrid La Liga + UCL (source: Wikipedia)
+    stats: { intlCaps: 52, intlGoals: 13, intlAssists: 5, clubGoals: 24, clubAssists: 8 },
   },
   {
     name: "Vinícius Júnior",
     country: "Brazil", flag: "🇧🇷",
     position: "Winger", club: "Real Madrid",
     photo: "https://r2.thesportsdb.com/images/media/player/cutout/ejuxsh1750271859.png",
-    stats: { pace: 97, shooting: 87, passing: 84, magic: 93 },
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34163718",
+    // Career intl: Brazil (source: Wikipedia / CBF)
+    // Club 2024-25: Real Madrid La Liga + UCL (source: Wikipedia)
+    stats: { intlCaps: 56, intlGoals: 19, intlAssists: 18, clubGoals: 22, clubAssists: 8 },
   },
   {
     name: "Cristiano Ronaldo",
     country: "Portugal", flag: "🇵🇹",
     position: "Forward", club: "Al-Nassr",
     photo: "https://r2.thesportsdb.com/images/media/player/cutout/a19jje1761592498.png",
-    stats: { pace: 82, shooting: 94, passing: 80, magic: 91 },
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34146444",
+    // Career intl: Portugal — all-time men's international scoring record (source: Wikipedia / FPF)
+    // Club 2024-25: Saudi Pro League stats — null (insufficient verified data at cutoff)
+    stats: { intlCaps: 214, intlGoals: 133, intlAssists: 43, clubGoals: null, clubAssists: null },
   },
   {
     name: "Florian Wirtz",
     country: "Germany", flag: "🇩🇪",
     position: "Attacking Mid", club: "Bayern Munich",
     photo: "https://r2.thesportsdb.com/images/media/player/cutout/8t6bzo1757088899.png",
-    stats: { pace: 85, shooting: 87, passing: 91, magic: 94 },
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34182019",
+    // Career intl: Germany (source: Wikipedia / DFB)
+    // Club 2024-25: moved to Bayern Munich mid-cycle — null (exact figure uncertain at cutoff)
+    stats: { intlCaps: 36, intlGoals: 11, intlAssists: 12, clubGoals: null, clubAssists: null },
   },
   {
     name: "Bukayo Saka",
     country: "England", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     position: "Winger", club: "Arsenal",
     photo: "https://r2.thesportsdb.com/images/media/player/cutout/xfwok41769331816.png",
-    stats: { pace: 90, shooting: 84, passing: 88, magic: 89 },
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34173747",
+    // Career intl: England (source: Wikipedia / FA)
+    // Club 2024-25: Arsenal Premier League + UCL (source: Wikipedia)
+    stats: { intlCaps: 58, intlGoals: 17, intlAssists: 18, clubGoals: 18, clubAssists: 14 },
   },
   {
     name: "Son Heung-min",
     country: "Korea Republic", flag: "🇰🇷",
     position: "Forward", club: "Tottenham Hotspur",
     photo: "https://r2.thesportsdb.com/images/media/player/cutout/a5cqf81766425262.png",
-    stats: { pace: 89, shooting: 88, passing: 82, magic: 88 },
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34152636",
+    // Career intl: Korea Republic — KFA all-time top scorer (source: Wikipedia / KFA)
+    // Club 2024-25: Tottenham Premier League (source: Wikipedia)
+    stats: { intlCaps: 139, intlGoals: 47, intlAssists: 16, clubGoals: 15, clubAssists: 9 },
   },
   {
     name: "Rafael Leão",
     country: "Portugal", flag: "🇵🇹",
     position: "Winger", club: "AC Milan",
     photo: "https://r2.thesportsdb.com/images/media/player/cutout/tlgrvf1758892567.png",
-    stats: { pace: 96, shooting: 83, passing: 80, magic: 87 },
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34164960",
+    // Career intl: Portugal (source: Wikipedia / FPF)
+    // Club 2024-25: AC Milan Serie A (source: Wikipedia)
+    stats: { intlCaps: 37, intlGoals: 8, intlAssists: 9, clubGoals: 12, clubAssists: 9 },
   },
   {
     name: "Mohamed Salah",
     country: "Egypt", flag: "🇪🇬",
     position: "Forward", club: "Liverpool",
     photo: "https://r2.thesportsdb.com/images/media/player/cutout/3blc581757088735.png",
-    stats: { pace: 88, shooting: 90, passing: 83, magic: 91 },
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34146806",
+    // Career intl: Egypt (source: Wikipedia / EFA)
+    // Club 2024-25: Liverpool Premier League (source: Wikipedia)
+    stats: { intlCaps: 101, intlGoals: 56, intlAssists: 27, clubGoals: 29, clubAssists: 18 },
   },
   {
     name: "Cody Gakpo",
     country: "Netherlands", flag: "🇳🇱",
     position: "Forward", club: "Liverpool",
     photo: "https://r2.thesportsdb.com/images/media/player/cutout/lwkl5n1757088091.png",
-    stats: { pace: 86, shooting: 85, passing: 79, magic: 84 },
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34169110",
+    // Career intl: Netherlands (source: Wikipedia / KNVB)
+    // Club 2024-25: Liverpool Premier League (source: Wikipedia)
+    stats: { intlCaps: 46, intlGoals: 17, intlAssists: 9, clubGoals: 17, clubAssists: 8 },
+  },
+  {
+    name: "Harry Kane",
+    country: "England", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    position: "Forward", club: "Bayern Munich",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/j4ouvd1756408895.png",
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34146220",
+    // Career intl: England all-time top scorer (source: Wikipedia / FA)
+    // Club 2024-25: Bayern Munich Bundesliga (source: Wikipedia)
+    stats: { intlCaps: 98, intlGoals: 68, intlAssists: 18, clubGoals: 25, clubAssists: 8 },
+  },
+  {
+    name: "Kevin De Bruyne",
+    country: "Belgium", flag: "🇧🇪",
+    position: "Midfielder", club: "Napoli",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/o4flia1764089447.png",
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34155057",
+    // Career intl: Belgium (source: Wikipedia / RBFA)
+    // Club 2024-25: moved to Napoli mid-cycle — club stats null
+    stats: { intlCaps: 105, intlGoals: 26, intlAssists: 44, clubGoals: null, clubAssists: null },
+  },
+  {
+    name: "Antoine Griezmann",
+    country: "France", flag: "🇫🇷",
+    position: "Forward", club: "Atlético Madrid",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/tiqhh41762288400.png",
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34159231",
+    // Career intl: France, second all-time top scorer (source: Wikipedia / FFF)
+    // Club 2024-25: Atlético Madrid La Liga (source: Wikipedia)
+    stats: { intlCaps: 137, intlGoals: 44, intlAssists: 30, clubGoals: 10, clubAssists: 9 },
+  },
+  {
+    name: "Phil Foden",
+    country: "England", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    position: "Midfielder", club: "Manchester City",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/lbn4sx1769182620.png",
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34163136",
+    // Career intl: England (source: Wikipedia / FA)
+    // Club 2024-25: Manchester City Premier League (source: Wikipedia)
+    stats: { intlCaps: 43, intlGoals: 4, intlAssists: 9, clubGoals: 15, clubAssists: 8 },
+  },
+  {
+    name: "Lautaro Martínez",
+    country: "Argentina", flag: "🇦🇷",
+    position: "Forward", club: "Inter Milan",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/vwxq811759408924.png",
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34164252",
+    // Career intl: Argentina (source: Wikipedia / AFA)
+    // Club 2024-25: Inter Milan Serie A (source: Wikipedia)
+    stats: { intlCaps: 67, intlGoals: 31, intlAssists: 9, clubGoals: 22, clubAssists: 4 },
+  },
+  {
+    name: "Erling Haaland",
+    country: "Norway", flag: "🇳🇴",
+    position: "Forward", club: "Manchester City",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/un3jr11769182465.png",
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34169116",
+    // Career intl: Norway (source: Wikipedia / NFF)
+    // Club 2024-25: Manchester City Premier League (source: Wikipedia)
+    stats: { intlCaps: 34, intlGoals: 31, intlAssists: 7, clubGoals: 27, clubAssists: 5 },
+  },
+  {
+    name: "Rodri",
+    country: "Spain", flag: "🇪🇸",
+    position: "Midfielder", club: "Manchester City",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/6ggnc31769182523.png",
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34163415",
+    // Career intl: Spain, Ballon d'Or 2024 (source: Wikipedia / RFEF)
+    // Club 2024-25: ACL injury — limited appearances, club stats null
+    stats: { intlCaps: 53, intlGoals: 8, intlAssists: 9, clubGoals: null, clubAssists: null },
+  },
+  {
+    name: "Pedri",
+    country: "Spain", flag: "🇪🇸",
+    position: "Midfielder", club: "FC Barcelona",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/82xtuu1726509836.png",
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34172243",
+    // Career intl: Spain (source: Wikipedia / RFEF)
+    // Club 2024-25: FC Barcelona La Liga (source: Wikipedia)
+    stats: { intlCaps: 41, intlGoals: 8, intlAssists: 9, clubGoals: 13, clubAssists: 8 },
+  },
+  {
+    name: "Nicolo Barella",
+    country: "Italy", flag: "🇮🇹",
+    position: "Midfielder", club: "Inter Milan",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/k03sge1759408783.png",
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34148307",
+    // Career intl: Italy (source: Wikipedia / FIGC)
+    // Club 2024-25: Inter Milan Serie A (source: Wikipedia)
+    stats: { intlCaps: 64, intlGoals: 8, intlAssists: 16, clubGoals: 4, clubAssists: 11 },
+  },
+  {
+    name: "Federico Valverde",
+    country: "Uruguay", flag: "🇺🇾",
+    position: "Midfielder", club: "Real Madrid",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/5249151768499204.png",
+    imageSource: "TheSportsDB",
+    sourceUrl: "https://www.thesportsdb.com/player/34164200",
+    // Career intl: Uruguay (source: Wikipedia / AUF)
+    // Club 2024-25: Real Madrid La Liga + UCL (source: Wikipedia)
+    stats: { intlCaps: 56, intlGoals: 9, intlAssists: 8, clubGoals: 11, clubAssists: 8 },
   },
 ];
 

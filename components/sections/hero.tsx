@@ -100,7 +100,7 @@ export function Hero() {
 
       {/* ── Layer 2: trophy reveal video — right-side cinematic panel ────── */}
       <motion.div
-        className="absolute inset-0 z-[2] hidden sm:block pointer-events-none"
+        className="absolute inset-0 z-[2] pointer-events-none"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: d(T.trophy), duration: 2.4, ease: EASE }}
@@ -108,15 +108,8 @@ export function Hero() {
       >
         <LoopVideo
           src="/videos/trophy-reveal.mp4"
-          className="absolute right-0 top-0 h-full w-[62%] object-cover object-center"
-          style={{
-            maskImage:
-              "linear-gradient(to right, transparent 0%, black 38%, black 85%, transparent 100%)",
-            WebkitMaskImage:
-              "linear-gradient(to right, transparent 0%, black 38%, black 85%, transparent 100%)",
-            filter: "brightness(0.75) saturate(1.3) contrast(1.05)",
-            opacity: 0.72,
-          }}
+          className="absolute right-0 top-0 h-full w-full sm:w-[62%] object-cover object-center trophy-video-mask"
+          style={{ filter: "brightness(0.75) saturate(1.3) contrast(1.05)" }}
         />
       </motion.div>
 

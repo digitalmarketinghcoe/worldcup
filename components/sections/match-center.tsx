@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SectionHeading, Stagger, StaggerItem } from "@/components/motion/reveal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Image from "next/image";
-import { COUNTRIES, PLAYERS, FIFA_FIXTURES, fixtureLabel, type Player, type Confederation } from "@/lib/data";
+import { COUNTRIES, PLAYERS, PLAYER_STAT_MAX, FIFA_FIXTURES, fixtureLabel, type Player, type Confederation } from "@/lib/data";
 import type { FifaFixture } from "@/lib/fixtures";
 
 // ─── shared filter pill ───────────────────────────────────────────────────────
@@ -361,7 +361,19 @@ function NationsPanel() {
 
 // ─── player card ──────────────────────────────────────────────────────────────
 
-function StatBar({ label, value }: { label: string; value: number }) {
+function StatBar({ label, value, max }: { label: string; value: number | null; max: number }) {
+  if (value === null) {
+    return (
+      <div>
+        <div className="flex justify-between text-[0.65rem] uppercase tracking-[0.18em] text-frost/50 mb-1.5">
+          <span>{label}</span>
+          <span className="text-frost/25">—</span>
+        </div>
+        <div className="h-1.5 rounded-full bg-frost/10" />
+      </div>
+    );
+  }
+  const pct = Math.min((value / max) * 100, 100);
   return (
     <div>
       <div className="flex justify-between text-[0.65rem] uppercase tracking-[0.18em] text-frost/50 mb-1.5">
@@ -371,7 +383,7 @@ function StatBar({ label, value }: { label: string; value: number }) {
       <div className="h-1.5 rounded-full bg-frost/10 overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
-          whileInView={{ width: `${value}%` }}
+          whileInView={{ width: `${pct}%` }}
           viewport={{ once: true }}
           transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
           className="h-full rounded-full bg-gradient-to-r from-crimson via-gold to-gold"
@@ -420,7 +432,6 @@ function PlayerCard({ player }: { player: Player }) {
             fill
             sizes="(max-width: 768px) 100vw, 33vw"
             className="object-contain object-bottom drop-shadow-[0_8px_24px_rgba(0,0,0,0.6)] transition-transform duration-500 group-hover:scale-105"
-            unoptimized
           />
           {/* flag badge */}
           <span className="absolute top-3 right-3 text-3xl drop-shadow-lg">{player.flag}</span>
@@ -433,10 +444,10 @@ function PlayerCard({ player }: { player: Player }) {
             {player.position} · {player.club}
           </p>
           <div className="mt-4 space-y-3">
-            <StatBar label="Pace"     value={player.stats.pace} />
-            <StatBar label="Shooting" value={player.stats.shooting} />
-            <StatBar label="Passing"  value={player.stats.passing} />
-            <StatBar label="Magic"    value={player.stats.magic} />
+            <StatBar label="Intl Caps"     value={player.stats.intlCaps}    max={PLAYER_STAT_MAX.intlCaps} />
+            <StatBar label="Intl Goals"    value={player.stats.intlGoals}   max={PLAYER_STAT_MAX.intlGoals} />
+            <StatBar label="24/25 Goals"   value={player.stats.clubGoals}   max={PLAYER_STAT_MAX.clubGoals} />
+            <StatBar label="24/25 Assists" value={player.stats.clubAssists} max={PLAYER_STAT_MAX.clubAssists} />
           </div>
         </div>
       </motion.div>
@@ -482,6 +493,9 @@ export function MatchCenter() {
                 <PlayerCard key={p.name} player={p} />
               ))}
             </Stagger>
+            <p className="mt-8 text-center text-[0.6rem] uppercase tracking-[0.18em] text-frost/25">
+              Career intl &amp; 2024/25 club stats · Wikipedia / official federation records · Photos: TheSportsDB
+            </p>
           </TabsContent>
         </Tabs>
       </div>
