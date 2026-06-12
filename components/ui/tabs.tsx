@@ -41,7 +41,7 @@ function TabsList({ className, children }: { className?: string; children: React
     <div
       role="tablist"
       className={cn(
-        "inline-flex items-center gap-1 rounded-full glass p-1.5",
+        "flex items-center gap-1 rounded-full glass p-1.5 max-w-full overflow-x-auto scrollbar-none",
         className
       )}
     >
@@ -60,7 +60,7 @@ function TabsTrigger({ value, children }: { value: string; children: React.React
       aria-controls={`${id}-panel-${value}`}
       onClick={() => setValue(value)}
       className={cn(
-        "relative rounded-full px-5 py-2 text-sm font-medium tracking-wide transition-colors cursor-pointer",
+        "relative rounded-full px-4 py-2 text-sm font-medium tracking-wide transition-colors cursor-pointer whitespace-nowrap",
         selected ? "text-midnight" : "text-frost/60 hover:text-frost"
       )}
     >

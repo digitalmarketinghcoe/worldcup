@@ -1,5 +1,10 @@
 # Higgsfield Prompt — Football Kick Transition
 
+**Job ID:** 487046e6-d2c7-49f0-9383-070892174dab
+**Account:** slorddevil@gmail.com
+**Output:** public/videos/football-kick.mp4 (5.6MB)
+**Integrated:** page.tsx — VideoTransition between Countdown and Predictions, height=35vh
+
 **Usage:** Page/section transition wipe. 4K 60fps HDR, 3–5s, ball must exit through camera.
 
 ## Prompt

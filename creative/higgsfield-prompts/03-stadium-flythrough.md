@@ -1,5 +1,10 @@
 # Higgsfield Prompt — Stadium Flythrough
 
+**Job ID:** 7cc3779b-9a8f-45b5-b0a9-e579caa407c3
+**Account:** slorddevil@gmail.com
+**Output:** public/videos/stadium-flythrough.mp4 (7.9MB)
+**Integrated:** page.tsx — VideoTransition between MatchCenter and Leaderboard, height=45vh
+
 **Usage:** Section transition / HCOE showcase intro. 4K 60fps HDR, 10–14s.
 
 ## Prompt

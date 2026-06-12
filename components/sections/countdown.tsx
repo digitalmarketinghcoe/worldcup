@@ -21,8 +21,8 @@ function getTimeLeft(target: Date): TimeLeft | null {
 function FlipDigit({ value, label }: { value: number; label: string }) {
   const text = String(value).padStart(2, "0");
   return (
-    <div className="glass rounded-2xl px-4 py-6 md:px-8 md:py-9 text-center min-w-[5rem] md:min-w-[8.5rem]">
-      <div className="relative h-[3.2rem] md:h-[5rem] overflow-hidden">
+    <div className="glass rounded-2xl px-6 py-7 md:px-10 md:py-10 text-center min-w-[6.5rem] md:min-w-[9rem]">
+      <div className="relative h-[3.8rem] md:h-[5.5rem] overflow-hidden">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
             key={text}
@@ -30,7 +30,7 @@ function FlipDigit({ value, label }: { value: number; label: string }) {
             animate={{ y: "0%", opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="text-numeric absolute inset-x-0 text-5xl md:text-7xl font-medium text-frost"
+            className="text-numeric absolute inset-x-0 text-5xl md:text-5xl font-medium text-frost"
           >
             {text}
           </motion.span>
@@ -81,7 +81,7 @@ export function Countdown() {
         />
 
         {left ? (
-          <div className="flex flex-wrap items-center justify-center gap-3 md:gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-6 md:gap-6">
             <FlipDigit value={left.days} label="Days" />
             <FlipDigit value={left.hours} label="Hours" />
             <FlipDigit value={left.minutes} label="Minutes" />

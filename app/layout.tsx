@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { SmoothScroll } from "@/components/providers/smooth-scroll";
+import { Navbar } from "@/components/sections/navbar";
+import { FloatingCta } from "@/components/sections/floating-cta";
 
 const bebas = Bebas_Neue({
   variable: "--font-bebas",
@@ -70,7 +72,9 @@ export default function RootLayout({
       className={`${bebas.variable} ${inter.variable} ${grotesk.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-pitch text-frost">
+        <Navbar />
         <SmoothScroll>{children}</SmoothScroll>
+        <FloatingCta />
         <div className="noise" aria-hidden="true" />
       </body>
     </html>

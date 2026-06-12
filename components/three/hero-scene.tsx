@@ -1,5 +1,6 @@
 "use client";
 
+import "@/lib/patch-three-clock";
 import * as React from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
@@ -143,16 +144,10 @@ export function HeroScene() {
       className="!absolute inset-0"
       aria-hidden="true"
     >
-      <ambientLight intensity={0.25} />
-      {/* stadium floodlights */}
-      <spotLight position={[-8, 9, 6]} intensity={220} angle={0.5} penumbra={0.8} color="#fff7cc" />
-      <spotLight position={[8, 9, 6]} intensity={180} angle={0.5} penumbra={0.8} color="#e2e8f0" />
-      <pointLight position={[0, -5, 4]} intensity={60} color="#d90429" />
-      <Football />
-      <Trophy />
+      <ambientLight intensity={0.15} />
       <ParticleField />
       <Rig />
-      <fog attach="fog" args={["#020617", 9, 18]} />
+      <fog attach="fog" args={["#020617", 10, 20]} />
     </Canvas>
   );
 }

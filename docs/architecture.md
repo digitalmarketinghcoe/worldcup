@@ -57,7 +57,7 @@ flowchart LR
     G --> H[Animated success + share card]
     H --> I[WhatsApp / Facebook / IG story export]
     I --> J[Friends visit site] --> A
-    H --> K[Check leaderboard] --> L[Return on next match day]
+    H --> K[Check leaderboard] --> L[Return after the Final]
 ```
 
 ## Prediction Data Flow
@@ -70,10 +70,10 @@ sequenceDiagram
     participant S as Google Apps Script
     participant G as Google Sheet
 
-    U->>F: Fill name, ID, program, pick, champion
+    U->>F: Fill name, ID, program, awards, podium, final, Best XI
     F->>F: Client-side validation
     F->>R: POST JSON
-    R->>R: Server-side validation (whitelisted picks)
+    R->>R: Server-side validation (country whitelist, podium uniqueness)
     R->>S: fetch POST + shared secret
     S->>S: Verify secret
     S->>G: appendRow()

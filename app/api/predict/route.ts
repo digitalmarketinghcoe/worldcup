@@ -1,32 +1,83 @@
 import { NextResponse } from "next/server";
-import { COUNTRIES, FIXTURES, PROGRAMS } from "@/lib/data";
+import { COUNTRIES, PROGRAMS } from "@/lib/data";
 
 type PredictionPayload = {
   fullName: string;
   studentId: string;
   program: string;
-  matchId: string;
-  pick: string;
-  champion: string;
+  goldenBall: string;
+  goldenBoot: string;
+  youngPlayer: string;
+  goldenGloves: string;
+  finalScore: string;
+  finalTeam: string;
+  finalMatchGoalScorer: string;
+  bestXI: string;
+  firstPlace: string;
+  secondPlace: string;
+  thirdPlace: string;
 };
+
+const COUNTRY_NAMES = new Set(COUNTRIES.map((c) => c.name));
+
+function validateText(
+  value: string | undefined,
+  field: string,
+  max: number,
+): string | null {
+  const v = value?.trim() ?? "";
+  if (!v) return `${field} is required.`;
+  if (v.length > max) return `${field}: max ${max} characters.`;
+  return null;
+}
 
 function validate(body: Partial<PredictionPayload>) {
   const errors: string[] = [];
   const fullName = body.fullName?.trim() ?? "";
   const studentId = body.studentId?.trim() ?? "";
 
-  if (fullName.length < 3 || fullName.length > 80) errors.push("Full name must be 3–80 characters.");
-  if (!/^[A-Za-z0-9/-]{4,20}$/.test(studentId)) errors.push("Student ID looks invalid.");
-  if (!PROGRAMS.includes(body.program ?? "")) errors.push("Unknown program.");
+  if (fullName.length < 3 || fullName.length > 80)
+    errors.push("Full name must be 3–80 characters.");
+  if (!/^[A-Za-z0-9/-]{4,20}$/.test(studentId))
+    errors.push("Student ID looks invalid.");
+  if (!PROGRAMS.includes(body.program ?? ""))
+    errors.push("Unknown program.");
 
-  const fixture = FIXTURES.find((f) => f.id === body.matchId);
-  if (!fixture) errors.push("Unknown match.");
-  else if (![fixture.home.name, fixture.away.name, "Draw"].includes(body.pick ?? "")) {
-    errors.push("Pick must be one of the two teams or a draw.");
+  const textFields: [keyof PredictionPayload, string, number][] = [
+    ["goldenBall", "Golden Ball", 80],
+    ["goldenBoot", "Golden Boot", 80],
+    ["youngPlayer", "Young Player", 80],
+    ["goldenGloves", "Golden Gloves", 80],
+    ["finalScore", "Final score", 80],
+    ["finalMatchGoalScorer", "Final match goal scorer", 80],
+    ["bestXI", "Best XI", 600],
+  ];
+  for (const [key, label, max] of textFields) {
+    const err = validateText(body[key], label, max);
+    if (err) errors.push(err);
   }
-  if (!COUNTRIES.some((c) => c.name === body.champion)) errors.push("Unknown champion pick.");
 
-  return { errors, fixture };
+  const selectFields: [keyof PredictionPayload, string][] = [
+    ["finalTeam", "World Cup winner"],
+    ["firstPlace", "1st place"],
+    ["secondPlace", "2nd place"],
+    ["thirdPlace", "3rd place"],
+  ];
+  for (const [key, label] of selectFields) {
+    if (!COUNTRY_NAMES.has(body[key] ?? ""))
+      errors.push(`${label}: unknown country.`);
+  }
+
+  if (
+    COUNTRY_NAMES.has(body.firstPlace ?? "") &&
+    COUNTRY_NAMES.has(body.secondPlace ?? "") &&
+    COUNTRY_NAMES.has(body.thirdPlace ?? "") &&
+    new Set([body.firstPlace, body.secondPlace, body.thirdPlace]).size < 3
+  ) {
+    errors.push("1st, 2nd, and 3rd place must be three different countries.");
+  }
+
+  return errors;
 }
 
 export async function POST(request: Request) {
@@ -34,10 +85,13 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ ok: false, errors: ["Invalid JSON body."] }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, errors: ["Invalid JSON body."] },
+      { status: 400 },
+    );
   }
 
-  const { errors, fixture } = validate(body);
+  const errors = validate(body);
   if (errors.length > 0) {
     return NextResponse.json({ ok: false, errors }, { status: 422 });
   }
@@ -48,9 +102,17 @@ export async function POST(request: Request) {
     fullName: body.fullName!.trim(),
     studentId: body.studentId!.trim(),
     program: body.program,
-    match: `${fixture!.home.name} vs ${fixture!.away.name}`,
-    pick: body.pick,
-    champion: body.champion,
+    goldenBall: body.goldenBall!.trim(),
+    goldenBoot: body.goldenBoot!.trim(),
+    youngPlayer: body.youngPlayer!.trim(),
+    goldenGloves: body.goldenGloves!.trim(),
+    finalScore: body.finalScore!.trim(),
+    finalTeam: body.finalTeam,
+    finalMatchGoalScorer: body.finalMatchGoalScorer!.trim(),
+    bestXI: body.bestXI!.trim(),
+    firstPlace: body.firstPlace,
+    secondPlace: body.secondPlace,
+    thirdPlace: body.thirdPlace,
     secret: process.env.GOOGLE_SCRIPT_SECRET ?? "",
   };
 
@@ -74,7 +136,7 @@ export async function POST(request: Request) {
     console.error("Prediction forwarding failed:", err);
     return NextResponse.json(
       { ok: false, errors: ["Could not save your prediction. Try again in a moment."] },
-      { status: 502 }
+      { status: 502 },
     );
   }
 }

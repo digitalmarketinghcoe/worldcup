@@ -1,23 +1,37 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { Trophy, Medal, Gift, Star } from "lucide-react";
 import { SectionHeading, Stagger, StaggerItem } from "@/components/motion/reveal";
 import { PRIZES } from "@/lib/data";
 
+const TrophyScene = dynamic(
+  () => import("@/components/three/trophy-scene").then((m) => m.TrophyScene),
+  { ssr: false }
+);
+
 const ICONS = [Trophy, Medal, Gift, Star];
 
 const ACCENTS: Record<string, { text: string; glow: string }> = {
-  gold: { text: "text-gold", glow: "glass-gold" },
-  frost: { text: "text-frost", glow: "" },
-  crimson: { text: "text-crimson", glow: "glass-crimson" },
-  turf: { text: "text-turf", glow: "" },
+  gold:    { text: "text-gold",   glow: "glass-gold"    },
+  frost:   { text: "text-frost",  glow: ""               },
+  crimson: { text: "text-crimson",glow: "glass-crimson"  },
+  turf:    { text: "text-turf",   glow: ""               },
 };
 
 export function Prizes() {
   return (
-    <section id="prizes" className="relative px-6 py-28 md:py-40 bg-grid-faint">
-      <div className="mx-auto max-w-6xl">
+    <section id="prizes" className="relative px-6 py-28 md:py-40 bg-grid-faint overflow-hidden">
+      {/* 3D trophy — floats right side behind cards */}
+      <div
+        className="absolute -right-24 top-1/2 -translate-y-1/2 w-[500px] h-[500px] opacity-20 pointer-events-none hidden lg:block"
+        aria-hidden="true"
+      >
+        <TrophyScene />
+      </div>
+
+      <div className="relative mx-auto max-w-6xl">
         <SectionHeading
           kicker="Worth Playing For"
           title="The Prize Cabinet"

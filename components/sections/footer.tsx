@@ -4,17 +4,17 @@ export function Footer() {
   return (
     <footer className="relative border-t border-frost/10 px-6 py-14">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-8 md:flex-row md:justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           <Image
             src="/Himalaya_Logo_White.png"
             alt="Himalaya College of Engineering"
-            width={140}
-            height={38}
-            className="h-9 w-auto opacity-75"
+            width={200}
+            height={54}
+            className="h-20 w-auto opacity-90 drop-shadow-[0_2px_12px_rgba(226,232,240,0.12)]"
           />
-          <div className="text-left">
-            <p className="text-display text-lg text-frost">Fan Zone 2026</p>
-            <p className="text-[0.65rem] uppercase tracking-[0.22em] text-frost/40">
+          <div className="text-left border-l border-frost/15 pl-5">
+            <p className="text-display text-2xl text-frost leading-tight">Fan Zone 2026</p>
+            <p className="text-[0.62rem] uppercase tracking-[0.24em] text-frost/40 mt-0.5">
               Engineering Meets Football
             </p>
           </div>

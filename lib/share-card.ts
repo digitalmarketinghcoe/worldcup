@@ -1,8 +1,8 @@
 type ShareCardData = {
   name: string;
-  champion: string;
-  match: string;
-  pick: string;
+  firstPlace: string;
+  goldenBall: string;
+  finalScore: string;
 };
 
 /**
@@ -53,45 +53,53 @@ export function drawShareCard(canvas: HTMLCanvasElement, data: ShareCardData) {
   ctx.font = "160px serif";
   ctx.fillText("🏆", W / 2, 400);
 
-  // Main claim
+  // Main claim — 1st place
   ctx.fillStyle = "#e2e8f0";
   ctx.font = "500 44px Inter, sans-serif";
   ctx.fillText("I PREDICTED", W / 2, 520);
 
   ctx.fillStyle = "#ffd60a";
-  ctx.font = "700 130px 'Bebas Neue', Impact, sans-serif";
-  ctx.fillText(data.champion.toUpperCase(), W / 2, 660);
+  ctx.font = "700 110px 'Bebas Neue', Impact, sans-serif";
+  ctx.fillText(data.firstPlace.toUpperCase(), W / 2, 645);
 
   ctx.fillStyle = "#e2e8f0";
   ctx.font = "500 44px Inter, sans-serif";
-  ctx.fillText("TO WIN THE FIFA WORLD CUP", W / 2, 740);
+  ctx.fillText("TO WIN THE FIFA WORLD CUP", W / 2, 720);
 
   // Divider
   ctx.strokeStyle = "rgba(226,232,240,0.2)";
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(W * 0.25, 820);
-  ctx.lineTo(W * 0.75, 820);
+  ctx.moveTo(W * 0.2, 790);
+  ctx.lineTo(W * 0.8, 790);
   ctx.stroke();
 
-  // Match pick
+  // Golden Ball
   ctx.fillStyle = "rgba(226,232,240,0.55)";
-  ctx.font = "400 36px Inter, sans-serif";
-  ctx.fillText(data.match, W / 2, 900);
+  ctx.font = "400 32px Inter, sans-serif";
+  ctx.fillText("GOLDEN BALL", W / 2, 860);
+  ctx.fillStyle = "#ffd60a";
+  ctx.font = "600 52px 'Space Grotesk', Inter, sans-serif";
+  ctx.fillText(data.goldenBall, W / 2, 930);
+
+  // Final score
+  ctx.fillStyle = "rgba(226,232,240,0.55)";
+  ctx.font = "400 32px Inter, sans-serif";
+  ctx.fillText("FINAL SCORE PREDICTION", W / 2, 1010);
   ctx.fillStyle = "#00d26a";
-  ctx.font = "600 48px 'Space Grotesk', Inter, sans-serif";
-  ctx.fillText(`My call: ${data.pick}`, W / 2, 970);
+  ctx.font = "600 46px 'Space Grotesk', Inter, sans-serif";
+  ctx.fillText(data.finalScore, W / 2, 1075);
 
   // Predictor
   ctx.fillStyle = "#e2e8f0";
   ctx.font = "600 52px Inter, sans-serif";
-  ctx.fillText(data.name, W / 2, 1110);
+  ctx.fillText(data.name, W / 2, 1190);
 
   // Footer brand
   ctx.fillStyle = "#ffd60a";
   ctx.font = "700 40px 'Bebas Neue', Impact, sans-serif";
-  ctx.fillText("POWERED BY HCOE", W / 2, 1230);
+  ctx.fillText("POWERED BY HCOE", W / 2, 1270);
   ctx.fillStyle = "rgba(226,232,240,0.4)";
   ctx.font = "400 28px Inter, sans-serif";
-  ctx.fillText("Himalaya College of Engineering", W / 2, 1280);
+  ctx.fillText("Himalaya College of Engineering", W / 2, 1315);
 }

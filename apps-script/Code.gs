@@ -17,9 +17,17 @@ var HEADERS = [
   "Full Name",
   "Student ID",
   "Program",
-  "Match",
-  "Pick",
-  "Champion",
+  "Golden Ball",
+  "Golden Boot",
+  "Young Player",
+  "Golden Gloves",
+  "Final Score",
+  "Final Team",
+  "Final Match Goal Scorer",
+  "Best XI",
+  "1st Place",
+  "2nd Place",
+  "3rd Place",
 ];
 
 function doPost(e) {
@@ -42,9 +50,17 @@ function doPost(e) {
       String(data.fullName || "").slice(0, 80),
       String(data.studentId || "").slice(0, 20),
       String(data.program || "").slice(0, 60),
-      String(data.match || "").slice(0, 80),
-      String(data.pick || "").slice(0, 40),
-      String(data.champion || "").slice(0, 40),
+      String(data.goldenBall || "").slice(0, 80),
+      String(data.goldenBoot || "").slice(0, 80),
+      String(data.youngPlayer || "").slice(0, 80),
+      String(data.goldenGloves || "").slice(0, 80),
+      String(data.finalScore || "").slice(0, 80),
+      String(data.finalTeam || "").slice(0, 60),
+      String(data.finalMatchGoalScorer || "").slice(0, 80),
+      String(data.bestXI || "").slice(0, 600),
+      String(data.firstPlace || "").slice(0, 60),
+      String(data.secondPlace || "").slice(0, 60),
+      String(data.thirdPlace || "").slice(0, 60),
     ]);
 
     return jsonResponse({ ok: true });

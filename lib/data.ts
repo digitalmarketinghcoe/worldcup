@@ -16,16 +16,19 @@ export type Player = {
   flag: string;
   position: string;
   club: string;
+  photo: string;
   stats: { pace: number; shooting: number; passing: number; magic: number };
 };
 
+// Legacy Fixture type kept for backwards compat with match-center.tsx
+// New code should import FifaFixture from lib/fixtures.ts
 export type Fixture = {
   id: string;
   stage: string;
   home: { name: string; flag: string };
   away: { name: string; flag: string };
   venue: string;
-  kickoff: string; // ISO
+  kickoff: string;
   status: "upcoming" | "live" | "finished";
   score?: { home: number; away: number };
 };
@@ -38,6 +41,9 @@ export type LeaderboardEntry = {
   correct: number;
   streak: number;
 };
+
+// Re-export FIFA fixture data as canonical source
+export { FIFA_FIXTURES, FIFA_GROUPS, fixturesByGroup, fixturesByStage, fixtureLabel, upcomingFixtures, liveFixtures, completedFixtures } from "@/lib/fixtures";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tournament meta
@@ -63,222 +69,83 @@ export const TOURNAMENT = {
 //             CONCACAF 6 (hosts included) · OFC 1
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 48 qualified nations — groups sourced from FIFA API (api.fifa.com, comp 17,
+// season 285023). FIFA ranks approximate late-2025. WC titles exact.
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const COUNTRIES: Country[] = [
-  // ── GROUP A ──────────────────────────────────────────────────────────────
-  {
-    code: "MX", name: "Mexico", flag: "🇲🇽",
-    group: "A", fifaRank: 14, titles: 0, confederation: "CONCACAF",
-  },
-  {
-    code: "ZA", name: "South Africa", flag: "🇿🇦",
-    group: "A", fifaRank: 59, titles: 0, confederation: "CAF",
-  },
-  {
-    code: "NZ", name: "New Zealand", flag: "🇳🇿",
-    group: "A", fifaRank: 96, titles: 0, confederation: "OFC",
-  },
-  {
-    code: "TR", name: "Turkey", flag: "🇹🇷",
-    group: "A", fifaRank: 25, titles: 0, confederation: "UEFA",
-  },
+  // ── GROUP A — Mexico · South Africa · Korea Republic · Czechia ──────────
+  { code: "MX",  name: "Mexico",                  flag: "🇲🇽", group: "A", fifaRank: 14,  titles: 0, confederation: "CONCACAF" },
+  { code: "ZA",  name: "South Africa",             flag: "🇿🇦", group: "A", fifaRank: 59,  titles: 0, confederation: "CAF"      },
+  { code: "KOR", name: "Korea Republic",           flag: "🇰🇷", group: "A", fifaRank: 22,  titles: 0, confederation: "AFC"      },
+  { code: "CZE", name: "Czechia",                  flag: "🇨🇿", group: "A", fifaRank: 37,  titles: 0, confederation: "UEFA"     },
 
-  // ── GROUP B ──────────────────────────────────────────────────────────────
-  {
-    code: "US", name: "USA", flag: "🇺🇸",
-    group: "B", fifaRank: 13, titles: 0, confederation: "CONCACAF",
-  },
-  {
-    code: "MA", name: "Morocco", flag: "🇲🇦",
-    group: "B", fifaRank: 12, titles: 0, confederation: "CAF",
-  },
-  {
-    code: "JP", name: "Japan", flag: "🇯🇵",
-    group: "B", fifaRank: 16, titles: 0, confederation: "AFC",
-  },
-  {
-    code: "RS", name: "Serbia", flag: "🇷🇸",
-    group: "B", fifaRank: 30, titles: 0, confederation: "UEFA",
-  },
+  // ── GROUP B — Canada · Bosnia and Herzegovina · Qatar · Switzerland ──────
+  { code: "CA",  name: "Canada",                   flag: "🇨🇦", group: "B", fifaRank: 43,  titles: 0, confederation: "CONCACAF" },
+  { code: "BIH", name: "Bosnia and Herzegovina",   flag: "🇧🇦", group: "B", fifaRank: 61,  titles: 0, confederation: "UEFA"     },
+  { code: "QAT", name: "Qatar",                    flag: "🇶🇦", group: "B", fifaRank: 37,  titles: 0, confederation: "AFC"      },
+  { code: "SUI", name: "Switzerland",              flag: "🇨🇭", group: "B", fifaRank: 18,  titles: 0, confederation: "UEFA"     },
 
-  // ── GROUP C ──────────────────────────────────────────────────────────────
-  {
-    code: "CA", name: "Canada", flag: "🇨🇦",
-    group: "C", fifaRank: 45, titles: 0, confederation: "CONCACAF",
-  },
-  {
-    code: "NG", name: "Nigeria", flag: "🇳🇬",
-    group: "C", fifaRank: 28, titles: 0, confederation: "CAF",
-  },
-  {
-    code: "SA", name: "Saudi Arabia", flag: "🇸🇦",
-    group: "C", fifaRank: 57, titles: 0, confederation: "AFC",
-  },
-  {
-    code: "HR", name: "Croatia", flag: "🇭🇷",
-    group: "C", fifaRank: 15, titles: 0, confederation: "UEFA",
-  },
+  // ── GROUP C — Brazil · Morocco · Haiti · Scotland ────────────────────────
+  { code: "BR",  name: "Brazil",                   flag: "🇧🇷", group: "C", fifaRank: 5,   titles: 5, confederation: "CONMEBOL" },
+  { code: "MA",  name: "Morocco",                  flag: "🇲🇦", group: "C", fifaRank: 12,  titles: 0, confederation: "CAF"      },
+  { code: "HAI", name: "Haiti",                    flag: "🇭🇹", group: "C", fifaRank: 82,  titles: 0, confederation: "CONCACAF" },
+  { code: "SCO", name: "Scotland",                 flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", group: "C", fifaRank: 38,  titles: 0, confederation: "UEFA"     },
 
-  // ── GROUP D ──────────────────────────────────────────────────────────────
-  {
-    code: "AR", name: "Argentina", flag: "🇦🇷",
-    group: "D", fifaRank: 1, titles: 3, confederation: "CONMEBOL",
-  },
-  {
-    code: "DZ", name: "Algeria", flag: "🇩🇿",
-    group: "D", fifaRank: 34, titles: 0, confederation: "CAF",
-  },
-  {
-    code: "ID", name: "Indonesia", flag: "🇮🇩",
-    group: "D", fifaRank: 125, titles: 0, confederation: "AFC", // intercontinental playoff
-  },
-  {
-    code: "ES", name: "Spain", flag: "🇪🇸",
-    group: "D", fifaRank: 3, titles: 1, confederation: "UEFA",
-  },
+  // ── GROUP D — USA · Paraguay · Australia · Türkiye ───────────────────────
+  { code: "US",  name: "USA",                      flag: "🇺🇸", group: "D", fifaRank: 13,  titles: 0, confederation: "CONCACAF" },
+  { code: "PAR", name: "Paraguay",                 flag: "🇵🇾", group: "D", fifaRank: 52,  titles: 0, confederation: "CONMEBOL" },
+  { code: "AUS", name: "Australia",                flag: "🇦🇺", group: "D", fifaRank: 23,  titles: 0, confederation: "AFC"      },
+  { code: "TUR", name: "Türkiye",                  flag: "🇹🇷", group: "D", fifaRank: 25,  titles: 0, confederation: "UEFA"     },
 
-  // ── GROUP E ──────────────────────────────────────────────────────────────
-  {
-    code: "BR", name: "Brazil", flag: "🇧🇷",
-    group: "E", fifaRank: 5, titles: 5, confederation: "CONMEBOL",
-  },
-  {
-    code: "EG", name: "Egypt", flag: "🇪🇬",
-    group: "E", fifaRank: 32, titles: 0, confederation: "CAF",
-  },
-  {
-    code: "KR", name: "South Korea", flag: "🇰🇷",
-    group: "E", fifaRank: 22, titles: 0, confederation: "AFC",
-  },
-  {
-    code: "PT", name: "Portugal", flag: "🇵🇹",
-    group: "E", fifaRank: 6, titles: 0, confederation: "UEFA",
-  },
+  // ── GROUP E — Germany · Curaçao · Côte d'Ivoire · Ecuador ───────────────
+  { code: "DE",  name: "Germany",                  flag: "🇩🇪", group: "E", fifaRank: 10,  titles: 4, confederation: "UEFA"     },
+  { code: "CUW", name: "Curaçao",                  flag: "🇨🇼", group: "E", fifaRank: 94,  titles: 0, confederation: "CONCACAF" },
+  { code: "CIV", name: "Côte d'Ivoire",            flag: "🇨🇮", group: "E", fifaRank: 46,  titles: 0, confederation: "CAF"      },
+  { code: "EC",  name: "Ecuador",                  flag: "🇪🇨", group: "E", fifaRank: 35,  titles: 0, confederation: "CONMEBOL" },
 
-  // ── GROUP F ──────────────────────────────────────────────────────────────
-  {
-    code: "FR", name: "France", flag: "🇫🇷",
-    group: "F", fifaRank: 2, titles: 2, confederation: "UEFA",
-  },
-  {
-    code: "CD", name: "DR Congo", flag: "🇨🇩",
-    group: "F", fifaRank: 54, titles: 0, confederation: "CAF",
-  },
-  {
-    code: "IR", name: "Iran", flag: "🇮🇷",
-    group: "F", fifaRank: 24, titles: 0, confederation: "AFC",
-  },
-  {
-    code: "UY", name: "Uruguay", flag: "🇺🇾",
-    group: "F", fifaRank: 17, titles: 2, confederation: "CONMEBOL",
-  },
+  // ── GROUP F — Netherlands · Japan · Sweden · Tunisia ─────────────────────
+  { code: "NL",  name: "Netherlands",              flag: "🇳🇱", group: "F", fifaRank: 7,   titles: 0, confederation: "UEFA"     },
+  { code: "JP",  name: "Japan",                    flag: "🇯🇵", group: "F", fifaRank: 16,  titles: 0, confederation: "AFC"      },
+  { code: "SWE", name: "Sweden",                   flag: "🇸🇪", group: "F", fifaRank: 24,  titles: 0, confederation: "UEFA"     },
+  { code: "TUN", name: "Tunisia",                  flag: "🇹🇳", group: "F", fifaRank: 30,  titles: 0, confederation: "CAF"      },
 
-  // ── GROUP G ──────────────────────────────────────────────────────────────
-  {
-    code: "EN", name: "England", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    group: "G", fifaRank: 4, titles: 1, confederation: "UEFA",
-  },
-  {
-    code: "CI", name: "Ivory Coast", flag: "🇨🇮",
-    group: "G", fifaRank: 46, titles: 0, confederation: "CAF",
-  },
-  {
-    code: "IQ", name: "Iraq", flag: "🇮🇶",
-    group: "G", fifaRank: 55, titles: 0, confederation: "AFC",
-  },
-  {
-    code: "CO", name: "Colombia", flag: "🇨🇴",
-    group: "G", fifaRank: 11, titles: 0, confederation: "CONMEBOL",
-  },
+  // ── GROUP G — Belgium · Egypt · IR Iran · New Zealand ────────────────────
+  { code: "BE",  name: "Belgium",                  flag: "🇧🇪", group: "G", fifaRank: 8,   titles: 0, confederation: "UEFA"     },
+  { code: "EG",  name: "Egypt",                    flag: "🇪🇬", group: "G", fifaRank: 32,  titles: 0, confederation: "CAF"      },
+  { code: "IRN", name: "IR Iran",                  flag: "🇮🇷", group: "G", fifaRank: 24,  titles: 0, confederation: "AFC"      },
+  { code: "NZ",  name: "New Zealand",              flag: "🇳🇿", group: "G", fifaRank: 96,  titles: 0, confederation: "OFC"      },
 
-  // ── GROUP H ──────────────────────────────────────────────────────────────
-  {
-    code: "DE", name: "Germany", flag: "🇩🇪",
-    group: "H", fifaRank: 10, titles: 4, confederation: "UEFA",
-  },
-  {
-    code: "SN", name: "Senegal", flag: "🇸🇳",
-    group: "H", fifaRank: 21, titles: 0, confederation: "CAF",
-  },
-  {
-    code: "UZ", name: "Uzbekistan", flag: "🇺🇿",
-    group: "H", fifaRank: 66, titles: 0, confederation: "AFC",
-  },
-  {
-    code: "EC", name: "Ecuador", flag: "🇪🇨",
-    group: "H", fifaRank: 35, titles: 0, confederation: "CONMEBOL",
-  },
+  // ── GROUP H — Spain · Cabo Verde · Saudi Arabia · Uruguay ────────────────
+  { code: "ES",  name: "Spain",                    flag: "🇪🇸", group: "H", fifaRank: 3,   titles: 1, confederation: "UEFA"     },
+  { code: "CPV", name: "Cabo Verde",               flag: "🇨🇻", group: "H", fifaRank: 68,  titles: 0, confederation: "CAF"      },
+  { code: "KSA", name: "Saudi Arabia",             flag: "🇸🇦", group: "H", fifaRank: 57,  titles: 0, confederation: "AFC"      },
+  { code: "UY",  name: "Uruguay",                  flag: "🇺🇾", group: "H", fifaRank: 17,  titles: 2, confederation: "CONMEBOL" },
 
-  // ── GROUP I ──────────────────────────────────────────────────────────────
-  {
-    code: "NL", name: "Netherlands", flag: "🇳🇱",
-    group: "I", fifaRank: 7, titles: 0, confederation: "UEFA",
-  },
-  {
-    code: "AU", name: "Australia", flag: "🇦🇺",
-    group: "I", fifaRank: 23, titles: 0, confederation: "AFC",
-  },
-  {
-    code: "VE", name: "Venezuela", flag: "🇻🇪",
-    group: "I", fifaRank: 55, titles: 0, confederation: "CONMEBOL",
-  },
-  {
-    code: "DK", name: "Denmark", flag: "🇩🇰",
-    group: "I", fifaRank: 19, titles: 0, confederation: "UEFA",
-  },
+  // ── GROUP I — France · Senegal · Iraq · Norway ───────────────────────────
+  { code: "FR",  name: "France",                   flag: "🇫🇷", group: "I", fifaRank: 2,   titles: 2, confederation: "UEFA"     },
+  { code: "SEN", name: "Senegal",                  flag: "🇸🇳", group: "I", fifaRank: 21,  titles: 0, confederation: "CAF"      },
+  { code: "IRQ", name: "Iraq",                     flag: "🇮🇶", group: "I", fifaRank: 55,  titles: 0, confederation: "AFC"      },
+  { code: "NOR", name: "Norway",                   flag: "🇳🇴", group: "I", fifaRank: 25,  titles: 0, confederation: "UEFA"     },
 
-  // ── GROUP J ──────────────────────────────────────────────────────────────
-  {
-    code: "IT", name: "Italy", flag: "🇮🇹",
-    group: "J", fifaRank: 9, titles: 4, confederation: "UEFA",
-  },
-  {
-    code: "JO", name: "Jordan", flag: "🇯🇴",
-    group: "J", fifaRank: 67, titles: 0, confederation: "AFC",
-  },
-  {
-    code: "PY", name: "Paraguay", flag: "🇵🇾",
-    group: "J", fifaRank: 52, titles: 0, confederation: "CONMEBOL", // intercontinental playoff
-  },
-  {
-    code: "CH", name: "Switzerland", flag: "🇨🇭",
-    group: "J", fifaRank: 18, titles: 0, confederation: "UEFA",
-  },
+  // ── GROUP J — Argentina · Algeria · Austria · Jordan ─────────────────────
+  { code: "AR",  name: "Argentina",                flag: "🇦🇷", group: "J", fifaRank: 1,   titles: 3, confederation: "CONMEBOL" },
+  { code: "DZ",  name: "Algeria",                  flag: "🇩🇿", group: "J", fifaRank: 34,  titles: 0, confederation: "CAF"      },
+  { code: "AT",  name: "Austria",                  flag: "🇦🇹", group: "J", fifaRank: 20,  titles: 0, confederation: "UEFA"     },
+  { code: "JOR", name: "Jordan",                   flag: "🇯🇴", group: "J", fifaRank: 67,  titles: 0, confederation: "AFC"      },
 
-  // ── GROUP K ──────────────────────────────────────────────────────────────
-  {
-    code: "BE", name: "Belgium", flag: "🇧🇪",
-    group: "K", fifaRank: 8, titles: 0, confederation: "UEFA",
-  },
-  {
-    code: "CM", name: "Cameroon", flag: "🇨🇲",
-    group: "K", fifaRank: 43, titles: 0, confederation: "CAF",
-  },
-  {
-    code: "PA", name: "Panama", flag: "🇵🇦",
-    group: "K", fifaRank: 60, titles: 0, confederation: "CONCACAF",
-  },
-  {
-    code: "AT", name: "Austria", flag: "🇦🇹",
-    group: "K", fifaRank: 20, titles: 0, confederation: "UEFA",
-  },
+  // ── GROUP K — Portugal · Colombia · Congo DR · Uzbekistan ────────────────
+  { code: "PT",  name: "Portugal",                 flag: "🇵🇹", group: "K", fifaRank: 6,   titles: 0, confederation: "UEFA"     },
+  { code: "CO",  name: "Colombia",                 flag: "🇨🇴", group: "K", fifaRank: 11,  titles: 0, confederation: "CONMEBOL" },
+  { code: "COD", name: "Congo DR",                 flag: "🇨🇩", group: "K", fifaRank: 54,  titles: 0, confederation: "CAF"      },
+  { code: "UZB", name: "Uzbekistan",               flag: "🇺🇿", group: "K", fifaRank: 66,  titles: 0, confederation: "AFC"      },
 
-  // ── GROUP L ──────────────────────────────────────────────────────────────
-  {
-    code: "SC", name: "Scotland", flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
-    group: "L", fifaRank: 38, titles: 0, confederation: "UEFA",
-  },
-  {
-    code: "HU", name: "Hungary", flag: "🇭🇺",
-    group: "L", fifaRank: 26, titles: 0, confederation: "UEFA",
-  },
-  {
-    code: "CR", name: "Costa Rica", flag: "🇨🇷",
-    group: "L", fifaRank: 50, titles: 0, confederation: "CONCACAF",
-  },
-  {
-    code: "HN", name: "Honduras", flag: "🇭🇳",
-    group: "L", fifaRank: 78, titles: 0, confederation: "CONCACAF",
-  },
+  // ── GROUP L — England · Croatia · Ghana · Panama ─────────────────────────
+  { code: "EN",  name: "England",                  flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", group: "L", fifaRank: 4,   titles: 1, confederation: "UEFA"     },
+  { code: "HR",  name: "Croatia",                  flag: "🇭🇷", group: "L", fifaRank: 15,  titles: 0, confederation: "UEFA"     },
+  { code: "GHA", name: "Ghana",                    flag: "🇬🇭", group: "L", fifaRank: 53,  titles: 0, confederation: "CAF"      },
+  { code: "PA",  name: "Panama",                   flag: "🇵🇦", group: "L", fifaRank: 60,  titles: 0, confederation: "CONCACAF" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -290,72 +157,84 @@ export const PLAYERS: Player[] = [
     name: "Lionel Messi",
     country: "Argentina", flag: "🇦🇷",
     position: "Forward", club: "Inter Miami",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/e0i2051750317027.png",
     stats: { pace: 80, shooting: 92, passing: 96, magic: 99 },
   },
   {
     name: "Kylian Mbappé",
     country: "France", flag: "🇫🇷",
     position: "Forward", club: "Real Madrid",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/h9u9vz1733653583.png",
     stats: { pace: 99, shooting: 93, passing: 86, magic: 92 },
   },
   {
     name: "Lamine Yamal",
     country: "Spain", flag: "🇪🇸",
     position: "Winger", club: "FC Barcelona",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/m9n4ja1761512633.png",
     stats: { pace: 92, shooting: 86, passing: 90, magic: 95 },
   },
   {
     name: "Jude Bellingham",
     country: "England", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     position: "Midfielder", club: "Real Madrid",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/trk5271750271712.png",
     stats: { pace: 84, shooting: 88, passing: 89, magic: 90 },
   },
   {
     name: "Vinícius Júnior",
     country: "Brazil", flag: "🇧🇷",
     position: "Winger", club: "Real Madrid",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/ejuxsh1750271859.png",
     stats: { pace: 97, shooting: 87, passing: 84, magic: 93 },
   },
   {
     name: "Cristiano Ronaldo",
     country: "Portugal", flag: "🇵🇹",
     position: "Forward", club: "Al-Nassr",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/a19jje1761592498.png",
     stats: { pace: 82, shooting: 94, passing: 80, magic: 91 },
   },
   {
     name: "Florian Wirtz",
     country: "Germany", flag: "🇩🇪",
     position: "Attacking Mid", club: "Bayern Munich",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/8t6bzo1757088899.png",
     stats: { pace: 85, shooting: 87, passing: 91, magic: 94 },
   },
   {
     name: "Bukayo Saka",
     country: "England", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     position: "Winger", club: "Arsenal",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/xfwok41769331816.png",
     stats: { pace: 90, shooting: 84, passing: 88, magic: 89 },
   },
   {
     name: "Son Heung-min",
-    country: "South Korea", flag: "🇰🇷",
+    country: "Korea Republic", flag: "🇰🇷",
     position: "Forward", club: "Tottenham Hotspur",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/a5cqf81766425262.png",
     stats: { pace: 89, shooting: 88, passing: 82, magic: 88 },
   },
   {
     name: "Rafael Leão",
     country: "Portugal", flag: "🇵🇹",
     position: "Winger", club: "AC Milan",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/tlgrvf1758892567.png",
     stats: { pace: 96, shooting: 83, passing: 80, magic: 87 },
   },
   {
     name: "Mohamed Salah",
     country: "Egypt", flag: "🇪🇬",
     position: "Forward", club: "Liverpool",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/3blc581757088735.png",
     stats: { pace: 88, shooting: 90, passing: 83, magic: 91 },
   },
   {
     name: "Cody Gakpo",
     country: "Netherlands", flag: "🇳🇱",
     position: "Forward", club: "Liverpool",
+    photo: "https://r2.thesportsdb.com/images/media/player/cutout/lwkl5n1757088091.png",
     stats: { pace: 86, shooting: 85, passing: 79, magic: 84 },
   },
 ];

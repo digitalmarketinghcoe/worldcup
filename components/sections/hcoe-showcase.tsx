@@ -40,15 +40,18 @@ export function HcoeShowcase() {
         </Stagger>
 
         <Reveal className="mt-16 text-center" delay={0.1}>
-          <div className="glass glass-crimson inline-flex flex-col items-center gap-5 rounded-3xl px-10 py-10 md:px-16">
+          <div className="glass glass-crimson inline-flex flex-col items-center gap-6 rounded-3xl px-12 py-12 md:px-20">
             <Image
               src="/Himalaya_Logo_White.png"
               alt="Himalaya College of Engineering"
-              width={180}
-              height={48}
-              className="h-10 w-auto opacity-90"
+              width={300}
+              height={80}
+              className="h-28 w-auto opacity-95 drop-shadow-[0_6px_32px_rgba(226,232,240,0.2)]"
             />
-            <p className="max-w-md text-frost/60 text-sm leading-relaxed">
+            <p className="text-display text-2xl md:text-3xl text-frost/80 tracking-wide">
+              Himalaya College of Engineering
+            </p>
+            <p className="max-w-md text-frost/55 text-sm leading-relaxed text-center">
               This entire experience — design, 3D, motion, backend — was engineered on campus.
               Imagine what you could build here.
             </p>
@@ -56,7 +59,7 @@ export function HcoeShowcase() {
               href="https://hcoe.edu.np"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gold text-[0.72rem] uppercase tracking-[0.26em] underline-offset-4 hover:underline"
+              className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-6 py-2.5 text-gold text-[0.72rem] uppercase tracking-[0.26em] hover:bg-gold/20 transition-colors"
             >
               Explore HCOE →
             </a>
