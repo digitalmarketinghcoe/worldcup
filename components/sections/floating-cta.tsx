@@ -1,11 +1,15 @@
 "use client";
 
 import * as React from "react";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function FloatingCta() {
+  const pathname = usePathname();
   const [visible, setVisible] = React.useState(false);
   const [dismissed, setDismissed] = React.useState(false);
+
+  if (pathname?.startsWith("/admin")) return null;
 
   React.useEffect(() => {
     const hero = document.querySelector('[aria-label*="hero"]') as HTMLElement | null;

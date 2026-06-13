@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,9 +22,12 @@ function smoothTo(href: string) {
 }
 
 export function Navbar() {
+  const pathname = usePathname();
   const [progress, setProgress] = React.useState(0);
   const [active, setActive] = React.useState("");
   const [open, setOpen] = React.useState(false);
+
+  if (pathname?.startsWith("/admin")) return null;
 
   // Scroll progress + glass trigger
   React.useEffect(() => {
