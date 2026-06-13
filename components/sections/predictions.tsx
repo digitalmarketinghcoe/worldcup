@@ -174,8 +174,7 @@ function DailyMatchForm() {
   const [fixtures, setFixtures] = React.useState<TodayFixture[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [eventId, setEventId] = React.useState<string | null>(null);
-  const [homeScore, setHomeScore] = React.useState("");
-  const [awayScore, setAwayScore] = React.useState("");
+  const [outcome, setOutcome] = React.useState<"home" | "draw" | "away" | null>(null);
   const [status, setStatus] = React.useState<"idle" | "submitting" | "success">("idle");
   const [errors, setErrors] = React.useState<string[]>([]);
 
@@ -202,12 +201,7 @@ function DailyMatchForm() {
     e.preventDefault();
     const errs = validateIdentity(identity);
     if (eventId == null) errs.push("Pick a match to predict.");
-    const hs = Number(homeScore);
-    const as = Number(awayScore);
-    if (homeScore === "" || !Number.isInteger(hs) || hs < 0 || hs > 99)
-      errs.push("Home score must be 0–99.");
-    if (awayScore === "" || !Number.isInteger(as) || as < 0 || as > 99)
-      errs.push("Away score must be 0–99.");
+    if (outcome == null) errs.push("Pick who you think wins.");
     if (errs.length) {
       setErrors(errs);
       return;
@@ -223,8 +217,7 @@ function DailyMatchForm() {
           studentId: identity.studentId,
           program: identity.program,
           eventId,
-          homeScore: hs,
-          awayScore: as,
+          outcome,
         }),
       });
       const data = await res.json();
@@ -249,21 +242,24 @@ function DailyMatchForm() {
         className="glass glass-gold rounded-3xl p-7 md:p-10 text-center"
       >
         <PartyPopper className="mx-auto size-11 text-gold" aria-hidden="true" />
-        <h3 className="text-display mt-4 text-3xl md:text-4xl text-frost">Score Locked In</h3>
+        <h3 className="text-display mt-4 text-3xl md:text-4xl text-frost">Prediction Locked In</h3>
         {selected && (
           <p className="mt-3 text-frost/65">
-            You called{" "}
+            You backed{" "}
             <span className="text-gold font-medium">
-              {selected.homeFlag} {selected.homeTeam} {homeScore}–{awayScore} {selected.awayTeam}{" "}
-              {selected.awayFlag}
+              {outcome === "home"
+                ? `${selected.homeFlag} ${selected.homeTeam} to win`
+                : outcome === "away"
+                ? `${selected.awayFlag} ${selected.awayTeam} to win`
+                : "a Draw"}
             </span>
-            .
+            {" "} in {selected.homeTeam} vs {selected.awayTeam}.
           </p>
         )}
+        <p className="mt-2 text-[0.7rem] uppercase tracking-[0.2em] text-gold/60">+3 pts if correct</p>
         <button
           onClick={() => {
-            setHomeScore("");
-            setAwayScore("");
+            setOutcome(null);
             setStatus("idle");
           }}
           className="mt-7 inline-flex items-center gap-2 text-[0.72rem] uppercase tracking-[0.2em] text-frost/40 hover:text-frost transition-colors cursor-pointer"
@@ -297,7 +293,7 @@ function DailyMatchForm() {
                 <button
                   key={f.eventId}
                   type="button"
-                  onClick={() => setEventId(f.eventId)}
+                  onClick={() => { setEventId(f.eventId); setOutcome(null); }}
                   className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors cursor-pointer ${
                     active
                       ? "border-gold/60 bg-gold/10"
@@ -323,40 +319,34 @@ function DailyMatchForm() {
 
       {selected && (
         <div>
-          <Label>Predicted Score</Label>
-          <div className="flex items-center justify-center gap-4">
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-2xl">{selected.homeFlag}</span>
-              <span className="text-xs text-frost/60 text-center max-w-[6rem]">{selected.homeTeam}</span>
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={99}
-                value={homeScore}
-                onChange={(e) => setHomeScore(e.target.value)}
-                className="w-20 text-center text-lg"
-                aria-label={`${selected.homeTeam} score`}
-                required
-              />
-            </div>
-            <span className="text-2xl text-frost/40 pt-7">–</span>
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-2xl">{selected.awayFlag}</span>
-              <span className="text-xs text-frost/60 text-center max-w-[6rem]">{selected.awayTeam}</span>
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={99}
-                value={awayScore}
-                onChange={(e) => setAwayScore(e.target.value)}
-                className="w-20 text-center text-lg"
-                aria-label={`${selected.awayTeam} score`}
-                required
-              />
-            </div>
+          <Label>Who wins?</Label>
+          <div className="grid grid-cols-3 gap-3 mt-1">
+            {([
+              { id: "home", flag: selected.homeFlag, label: selected.homeTeam },
+              { id: "draw", flag: "🤝", label: "Draw" },
+              { id: "away", flag: selected.awayFlag, label: selected.awayTeam },
+            ] as { id: "home" | "draw" | "away"; flag: string; label: string }[]).map(({ id, flag, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setOutcome(id)}
+                className={`flex flex-col items-center gap-2 rounded-2xl border px-3 py-4 transition-all cursor-pointer ${
+                  outcome === id
+                    ? "border-gold bg-gold/15 shadow-[0_0_18px_rgba(255,214,10,0.25)]"
+                    : "border-frost/12 bg-white/5 hover:border-frost/30 hover:bg-white/10"
+                }`}
+              >
+                <span className="text-3xl">{flag}</span>
+                <span className={`text-xs font-medium text-center leading-tight ${
+                  outcome === id ? "text-gold" : "text-frost/70"
+                }`}>{label}</span>
+                {outcome === id && (
+                  <span className="text-[0.6rem] uppercase tracking-widest text-gold/80">✓ picked</span>
+                )}
+              </button>
+            ))}
           </div>
+          <p className="mt-2 text-[0.65rem] text-frost/35 text-center">Correct pick earns +3 points</p>
         </div>
       )}
 
@@ -365,14 +355,14 @@ function DailyMatchForm() {
       <Button
         type="submit"
         size="lg"
-        disabled={status === "submitting" || fixtures.length === 0}
+        disabled={status === "submitting" || fixtures.length === 0 || outcome == null}
         className="w-full"
       >
-        {status === "submitting" ? "Locking In…" : "Lock In Match Score"}
+        {status === "submitting" ? "Locking In…" : "Lock In My Pick"}
       </Button>
 
       <p className="text-center text-[0.7rem] uppercase tracking-[0.2em] text-frost/35">
-        One prediction per match · Predict before kickoff
+        One prediction per match · Predict before kickoff · 3 pts per correct pick
       </p>
     </form>
   );

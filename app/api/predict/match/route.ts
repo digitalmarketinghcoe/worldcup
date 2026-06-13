@@ -58,10 +58,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, errors }, { status: 422 });
   }
 
-  const home = body.homeScore!;
-  const away = body.awayScore!;
-  const outcome = home > away ? "home" : home < away ? "away" : "draw";
-
   const row = {
     full_name: fullName,
     student_id: studentId,
@@ -71,9 +67,7 @@ export async function POST(request: Request) {
     match_label: fixtureLabel(fixture!),
     home_team: fixture!.homeTeam!,
     away_team: fixture!.awayTeam!,
-    home_score: home,
-    away_score: away,
-    outcome,
+    outcome: body.outcome!,
   };
 
   const supabase = getSupabaseAdmin();
