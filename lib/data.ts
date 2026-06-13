@@ -706,14 +706,14 @@ export const LEADERBOARD: LeaderboardEntry[] = [
 export const PRIZES = [
   {
     place: "Champion",
-    title: "Official Jersey + Trophy",
-    detail: "Authentic 2026 national team jersey of your choice, champion trophy, and HCOE merch pack.",
+    title: "Winning Jersey",
+    detail: "2026 national team jersey of your choice and Trophy.",
     accent: "gold" as const,
   },
   {
     place: "Runner-Up",
     title: "Match-Day Bundle",
-    detail: "Premium football, HCOE varsity hoodie, and fan-zone VIP access for finals screening.",
+    detail: "Premium football.",
     accent: "frost" as const,
   },
   {
@@ -721,12 +721,6 @@ export const PRIZES = [
     title: "Fan Kit",
     detail: "Scarf, cap, and HCOE fan-zone kit. Bragging rights included.",
     accent: "crimson" as const,
-  },
-  {
-    place: "Weekly Top Predictor",
-    title: "Canteen Card",
-    detail: "Weekly winners take a loaded HCOE canteen card and a leaderboard spotlight.",
-    accent: "turf" as const,
   },
 ];
 

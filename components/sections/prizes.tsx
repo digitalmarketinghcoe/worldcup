@@ -38,7 +38,7 @@ export function Prizes() {
           copy="Predict well, climb the board, take home more than bragging rights."
         />
 
-        <Stagger className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+        <Stagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {PRIZES.map((p, i) => {
             const Icon = ICONS[i % ICONS.length];
             const accent = ACCENTS[p.accent];

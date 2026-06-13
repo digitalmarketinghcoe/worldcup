@@ -10,7 +10,7 @@ type Outcome = "home" | "draw" | "away";
 
 type PredictionRow = {
   full_name: string;
-  student_id: string;
+  student_id: string | null;
   program: string;
   event_id: string;
   outcome: Outcome;
@@ -74,7 +74,8 @@ export async function computeLeaderboard(
   for (const p of predictions) {
     const actual = results.get(p.event_id);
     if (!actual) continue; // match not finished yet — doesn't score
-    const key = p.student_id.toLowerCase();
+    // Faculty entrants may have no student ID — fall back to name as the key.
+    const key = (p.student_id ?? `name:${p.full_name}`).toLowerCase();
     const acc =
       byStudent.get(key) ??
       { name: p.full_name, program: p.program, correct: 0, calls: [] };

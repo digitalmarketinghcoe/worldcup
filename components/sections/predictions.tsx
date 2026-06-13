@@ -100,30 +100,32 @@ function IdentityFields({
           />
         </div>
         <div>
-          <Label htmlFor="studentId">Student ID</Label>
-          <Input
-            id="studentId"
-            placeholder="e.g. HCE080BCT001"
-            value={value.studentId}
-            onChange={(e) => onChange({ studentId: e.target.value })}
-            maxLength={20}
-            required
-          />
+          <Label htmlFor="program">Program</Label>
+          <Select
+            id="program"
+            value={value.program}
+            onChange={(e) => onChange({ program: e.target.value })}
+          >
+            {PROGRAMS.map((p) => (
+              <option key={p} value={p} className="bg-midnight">
+                {p}
+              </option>
+            ))}
+          </Select>
         </div>
       </div>
       <div>
-        <Label htmlFor="program">Program</Label>
-        <Select
-          id="program"
-          value={value.program}
-          onChange={(e) => onChange({ program: e.target.value })}
-        >
-          {PROGRAMS.map((p) => (
-            <option key={p} value={p} className="bg-midnight">
-              {p}
-            </option>
-          ))}
-        </Select>
+        <Label htmlFor="studentId">
+          Student ID{value.program === "Faculty" ? " (optional)" : ""}
+        </Label>
+        <Input
+          id="studentId"
+          placeholder={value.program === "Faculty" ? "Optional for faculty" : "e.g. HCE080BCT001"}
+          value={value.studentId}
+          onChange={(e) => onChange({ studentId: e.target.value })}
+          maxLength={20}
+          required={value.program !== "Faculty"}
+        />
       </div>
     </>
   );
@@ -132,9 +134,13 @@ function IdentityFields({
 function validateIdentity(id: Identity): string[] {
   const errs: string[] = [];
   if (id.fullName.trim().length < 3) errs.push("Enter your full name.");
-  if (!/^[A-Za-z0-9/-]{4,20}$/.test(id.studentId.trim()))
-    errs.push("Student ID: 4–20 letters, digits, / or -.");
   if (!PROGRAMS.includes(id.program)) errs.push("Select a valid program.");
+
+  // Student ID is optional for faculty; if present it must still be well-formed.
+  const sid = id.studentId.trim();
+  const isFaculty = id.program === "Faculty";
+  if ((!isFaculty || sid) && !/^[A-Za-z0-9/-]{4,20}$/.test(sid))
+    errs.push("Student ID: 4–20 letters, digits, / or -.");
   return errs;
 }
 
