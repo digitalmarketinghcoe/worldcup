@@ -65,19 +65,28 @@ function fmtCell(key: string, v: unknown): string {
   return cellText(v);
 }
 
-const OUTCOME_BADGE: Record<string, { label: string; cls: string }> = {
-  home: { label: "Home Win", cls: "bg-turf/15 text-turf border border-turf/25"     },
-  away: { label: "Away Win", cls: "bg-gold/15 text-gold border border-gold/25"     },
-  draw: { label: "Draw",     cls: "bg-frost/10 text-frost/70 border border-frost/15" },
+const OUTCOME_CLS: Record<string, string> = {
+  home: "bg-turf/15 text-turf border border-turf/25",
+  away: "bg-gold/15 text-gold border border-gold/25",
+  draw: "bg-frost/10 text-frost/70 border border-frost/15",
 };
 
-function CellContent({ col, value }: { col: Column; value: unknown }) {
+function CellContent({ col, value, row }: { col: Column; value: unknown; row: Row }) {
   if (col.key === "outcome" && value) {
-    const badge = OUTCOME_BADGE[String(value)];
-    if (badge) {
+    const outcome = String(value);
+    const cls = OUTCOME_CLS[outcome];
+    if (cls) {
+      let label: string;
+      if (outcome === "home") {
+        label = row.home_team ? String(row.home_team) : "Home Win";
+      } else if (outcome === "away") {
+        label = row.away_team ? String(row.away_team) : "Away Win";
+      } else {
+        label = "Draw";
+      }
       return (
-        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.cls}`}>
-          {badge.label}
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}>
+          {label}
         </span>
       );
     }
@@ -317,7 +326,7 @@ export function AdminDashboard() {
                     >
                       {cols.map((c) => (
                         <td key={c.key} className="overflow-hidden px-4 py-3 text-frost/75">
-                          <CellContent col={c} value={r[c.key]} />
+                          <CellContent col={c} value={r[c.key]} row={r} />
                         </td>
                       ))}
                     </tr>
