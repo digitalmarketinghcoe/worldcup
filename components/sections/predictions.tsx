@@ -395,6 +395,8 @@ type FinalState = {
   thirdPlace: string;
 };
 
+const SORTED_COUNTRIES = [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name));
+
 const FINAL_INITIAL: FinalState = {
   fullName: "",
   studentId: "",
@@ -404,12 +406,12 @@ const FINAL_INITIAL: FinalState = {
   youngPlayer: "",
   goldenGloves: "",
   finalScore: "",
-  finalTeam: COUNTRIES[0].name,
+  finalTeam: SORTED_COUNTRIES[0].name,
   finalMatchGoalScorer: "",
   bestXI: "",
-  firstPlace: COUNTRIES[0].name,
-  secondPlace: COUNTRIES[1].name,
-  thirdPlace: COUNTRIES[2].name,
+  firstPlace: SORTED_COUNTRIES[0].name,
+  secondPlace: SORTED_COUNTRIES[1].name,
+  thirdPlace: SORTED_COUNTRIES[2].name,
 };
 
 function FinalPredictionForm() {
@@ -661,7 +663,7 @@ function FinalPredictionForm() {
             value={form.finalTeam}
             onChange={(e) => set("finalTeam", e.target.value)}
           >
-            {COUNTRIES.map((c) => (
+            {SORTED_COUNTRIES.map((c) => (
               <option key={c.code} value={c.name} className="bg-midnight">
                 {c.flag} {c.name}
               </option>
@@ -691,7 +693,7 @@ function FinalPredictionForm() {
             value={form.firstPlace}
             onChange={(e) => set("firstPlace", e.target.value)}
           >
-            {COUNTRIES.map((c) => (
+            {SORTED_COUNTRIES.map((c) => (
               <option key={c.code} value={c.name} className="bg-midnight">
                 {c.flag} {c.name}
               </option>
@@ -705,7 +707,7 @@ function FinalPredictionForm() {
             value={form.secondPlace}
             onChange={(e) => set("secondPlace", e.target.value)}
           >
-            {COUNTRIES.map((c) => (
+            {SORTED_COUNTRIES.map((c) => (
               <option key={c.code} value={c.name} className="bg-midnight">
                 {c.flag} {c.name}
               </option>
@@ -719,7 +721,7 @@ function FinalPredictionForm() {
             value={form.thirdPlace}
             onChange={(e) => set("thirdPlace", e.target.value)}
           >
-            {COUNTRIES.map((c) => (
+            {SORTED_COUNTRIES.map((c) => (
               <option key={c.code} value={c.name} className="bg-midnight">
                 {c.flag} {c.name}
               </option>

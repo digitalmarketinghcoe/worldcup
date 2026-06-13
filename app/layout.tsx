@@ -21,7 +21,7 @@ const grotesk = Space_Grotesk({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://worldcup.hcoe.edu.np";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://hcoeworldcup.online";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -64,6 +64,9 @@ export const metadata: Metadata = {
       "Engineering meets football. Predict match winners, climb the leaderboard, win prizes. Powered by Himalaya College of Engineering, Nepal.",
   },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
+  verification: {
+    google: "google203abb436e9f4385",
+  },
 };
 
 export const viewport: Viewport = {
