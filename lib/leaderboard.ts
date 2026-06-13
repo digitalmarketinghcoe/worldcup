@@ -14,13 +14,14 @@ type PredictionRow = {
   program: string;
   event_id: string;
   outcome: Outcome;
+  match_number: number;
 };
 
 /** Actual result of a finished fixture, keyed by provider event id. */
 function finishedResults(
   fixtures: Awaited<ReturnType<typeof getFixtures>>,
-): Map<string, { outcome: Outcome; dateMs: number }> {
-  const map = new Map<string, { outcome: Outcome; dateMs: number }>();
+): Map<string, { outcome: Outcome; dateMs: number; matchNumber: number }> {
+  const map = new Map<string, { outcome: Outcome; dateMs: number; matchNumber: number }>();
   for (const f of fixtures) {
     if (
       f.eventId &&
@@ -30,15 +31,15 @@ function finishedResults(
     ) {
       const outcome: Outcome =
         f.homeScore > f.awayScore ? "home" : f.homeScore < f.awayScore ? "away" : "draw";
-      map.set(f.eventId, { outcome, dateMs: new Date(f.date).getTime() });
+      map.set(f.eventId, { outcome, dateMs: new Date(f.date).getTime(), matchNumber: f.matchNumber });
     }
   }
   return map;
 }
 
 /** Longest run of consecutive correct calls, ordered by match kickoff. */
-function longestStreak(results: { dateMs: number; correct: boolean }[]): number {
-  const ordered = [...results].sort((a, b) => a.dateMs - b.dateMs);
+function longestStreak(results: { dateMs: number; matchNumber: number; correct: boolean }[]): number {
+  const ordered = [...results].sort((a, b) => a.dateMs - b.dateMs || a.matchNumber - b.matchNumber);
   let best = 0;
   let run = 0;
   for (const r of ordered) {
@@ -57,7 +58,7 @@ export async function computeLeaderboard(
 ): Promise<LeaderboardEntry[]> {
   const { data, error } = await supabase
     .from("match_predictions")
-    .select("full_name, student_id, program, event_id, outcome");
+    .select("full_name, student_id, program, event_id, outcome, match_number");
   if (error) throw error;
 
   const predictions = (data ?? []) as PredictionRow[];
@@ -67,21 +68,26 @@ export async function computeLeaderboard(
     name: string;
     program: string;
     correct: number;
-    calls: { dateMs: number; correct: boolean }[];
+    calls: { dateMs: number; matchNumber: number; correct: boolean }[];
   };
   const byStudent = new Map<string, Acc>();
 
+  const seen = new Set<string>();
   for (const p of predictions) {
     const actual = results.get(p.event_id);
     if (!actual) continue; // match not finished yet — doesn't score
     // Faculty entrants may have no student ID — fall back to name as the key.
     const key = (p.student_id ?? `name:${p.full_name}`).toLowerCase();
+    const predictionKey = `${key}:${p.event_id}`;
+    if (seen.has(predictionKey)) continue;
+    seen.add(predictionKey);
+
     const acc =
       byStudent.get(key) ??
       { name: p.full_name, program: p.program, correct: 0, calls: [] };
     const isCorrect = p.outcome === actual.outcome;
     if (isCorrect) acc.correct += 1;
-    acc.calls.push({ dateMs: actual.dateMs, correct: isCorrect });
+    acc.calls.push({ dateMs: actual.dateMs, matchNumber: actual.matchNumber, correct: isCorrect });
     byStudent.set(key, acc);
   }
 

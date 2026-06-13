@@ -31,13 +31,10 @@ export async function POST(request: Request) {
   const fullName = body.fullName?.trim() ?? "";
   const studentId = body.studentId?.trim() ?? "";
 
-  const isFaculty = body.program === "Faculty";
-
   if (fullName.length < 3 || fullName.length > 80)
     errors.push("Full name must be 3–80 characters.");
-  // Student ID is optional for faculty; if present it must still be well-formed.
-  if ((!isFaculty || studentId) && !/^[A-Za-z0-9/-]{4,20}$/.test(studentId))
-    errors.push("Student ID looks invalid.");
+  if (!/^[A-Za-z0-9/-]{4,20}$/.test(studentId))
+    errors.push("Student / Employee ID looks invalid.");
   if (!PROGRAMS.includes(body.program ?? ""))
     errors.push("Unknown program.");
   if (!body.outcome || !OUTCOMES.includes(body.outcome))
@@ -57,12 +54,29 @@ export async function POST(request: Request) {
     errors.push("That match has already finished.");
   } else if (fixture?.matchStatus === 1) {
     errors.push("That match is already underway — predictions are closed.");
-  } else if (fixture && new Date(fixture.date).getTime() <= Date.now()) {
+  } else if (fixture && new Date(fixture.date).getTime() + 60000 <= Date.now()) {
     errors.push("Predictions closed — the match has kicked off.");
   }
 
   if (errors.length > 0) {
     return NextResponse.json({ ok: false, errors }, { status: 422 });
+  }
+
+  const supabase = getSupabaseAdmin();
+  if (supabase && studentId && fixture?.eventId) {
+    const { data: existing } = await supabase
+      .from("match_predictions")
+      .select("id")
+      .eq("student_id", studentId)
+      .eq("event_id", fixture.eventId)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json(
+        { ok: false, errors: ["You've already predicted this match."] },
+        { status: 409 },
+      );
+    }
   }
 
   const row = {
@@ -77,7 +91,6 @@ export async function POST(request: Request) {
     outcome: body.outcome!,
   };
 
-  const supabase = getSupabaseAdmin();
   if (!supabase) {
     console.warn("Supabase env not set — match prediction logged locally only:", row);
     return NextResponse.json({ ok: true, stored: "local" });

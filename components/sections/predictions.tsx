@@ -116,15 +116,15 @@ function IdentityFields({
       </div>
       <div>
         <Label htmlFor="studentId">
-          Student ID{value.program === "Faculty" ? " (optional)" : ""}
+          {value.program === "Faculty" ? "Faculty / Employee ID" : "Student ID"}
         </Label>
         <Input
           id="studentId"
-          placeholder={value.program === "Faculty" ? "Optional for faculty" : "e.g. HCE080BCT001"}
+          placeholder={value.program === "Faculty" ? "e.g. TCH001" : "e.g. HCE080BCT001"}
           value={value.studentId}
           onChange={(e) => onChange({ studentId: e.target.value })}
           maxLength={20}
-          required={value.program !== "Faculty"}
+          required
         />
       </div>
     </>
@@ -136,11 +136,12 @@ function validateIdentity(id: Identity): string[] {
   if (id.fullName.trim().length < 3) errs.push("Enter your full name.");
   if (!PROGRAMS.includes(id.program)) errs.push("Select a valid program.");
 
-  // Student ID is optional for faculty; if present it must still be well-formed.
   const sid = id.studentId.trim();
-  const isFaculty = id.program === "Faculty";
-  if ((!isFaculty || sid) && !/^[A-Za-z0-9/-]{4,20}$/.test(sid))
-    errs.push("Student ID: 4–20 letters, digits, / or -.");
+  if (!sid) {
+    errs.push(id.program === "Faculty" ? "Enter your Faculty / Employee ID." : "Enter your Student ID.");
+  } else if (!/^[A-Za-z0-9/-]{4,20}$/.test(sid)) {
+    errs.push(id.program === "Faculty" ? "ID must be 4–20 letters, digits, / or -." : "Student ID must be 4–20 letters, digits, / or -.");
+  }
   return errs;
 }
 
