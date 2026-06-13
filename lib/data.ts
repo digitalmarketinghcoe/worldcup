@@ -738,7 +738,7 @@ export const HCOE_SHOWCASE = [
   {
     title: "Hackathons",
     stat: "48hr",
-    copy: "Annual HimalayaHacks — students ship real products in one sleepless weekend.",
+    copy: "Annual Codeyatra — students ship real products in one sleepless weekend.",
   },
   {
     title: "Robotics Club",
@@ -748,7 +748,7 @@ export const HCOE_SHOWCASE = [
   {
     title: "Sports Week",
     stat: "20+",
-    copy: "Inter-college futsal, cricket and e-sports tournaments every semester.",
+    copy: "Inter-college futsal, cricket and e-sports tournaments every year.",
   },
   {
     title: "Engineering Projects",
