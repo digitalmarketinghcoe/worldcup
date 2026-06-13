@@ -55,6 +55,10 @@ export async function POST(request: Request) {
     errors.push("Pick a valid match to predict.");
   } else if (fixture?.matchStatus === 3) {
     errors.push("That match has already finished.");
+  } else if (fixture?.matchStatus === 1) {
+    errors.push("That match is already underway — predictions are closed.");
+  } else if (fixture && new Date(fixture.date).getTime() <= Date.now()) {
+    errors.push("Predictions closed — the match has kicked off.");
   }
 
   if (errors.length > 0) {

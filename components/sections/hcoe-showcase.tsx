@@ -7,7 +7,7 @@ import { HCOE_SHOWCASE } from "@/lib/data";
 
 export function HcoeShowcase() {
   return (
-    <section id="hcoe" className="relative px-6 py-28 md:py-40 overflow-hidden">
+    <section id="hcoe" aria-label="About Himalaya College of Engineering" className="relative px-6 py-28 md:py-40 overflow-hidden">
       <div
         className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_120%,rgba(7,17,36,1),transparent)]"
         aria-hidden="true"

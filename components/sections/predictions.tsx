@@ -281,15 +281,15 @@ function DailyMatchForm() {
       <IdentityFields value={identity} onChange={(p) => setIdentity((i) => ({ ...i, ...p }))} />
 
       <div>
-        <Label>Today&apos;s Matches</Label>
+        <Label>Upcoming Matches (Next 24 Hours)</Label>
         {loading ? (
           <div className="rounded-xl border border-frost/10 bg-white/5 px-4 py-6 text-center text-sm text-frost/45">
-            Loading today&apos;s fixtures…
+            Loading upcoming fixtures…
           </div>
         ) : fixtures.length === 0 ? (
           <div className="rounded-xl border border-frost/10 bg-white/5 px-4 py-6 text-center text-sm text-frost/55">
-            No World Cup matches scheduled today. Check back tomorrow — or lock in your tournament
-            predictions on the next tab.
+            No matches kicking off in the next 24 hours. Check back soon — or lock in your
+            tournament predictions on the next tab.
           </div>
         ) : (
           <div className="grid gap-3">
@@ -783,7 +783,7 @@ export function Predictions() {
   };
 
   return (
-    <section id="predict" className="relative px-6 py-28 md:py-40 overflow-hidden">
+    <section id="predict" aria-label="World Cup 2026 Prediction Challenge" className="relative px-6 py-28 md:py-40 overflow-hidden">
       {/* 3D football — floats left side behind form */}
       <div
         className="absolute -left-20 top-1/2 -translate-y-1/2 w-[420px] h-[420px] opacity-25 pointer-events-none hidden lg:block"
@@ -799,7 +799,7 @@ export function Predictions() {
         <SectionHeading
           kicker="Prediction Challenge"
           title="Call the Tournament"
-          copy="Two ways to play: predict today's match scores, or lock in your full-tournament awards and podium. The most accurate predictions win prizes."
+          copy="Two ways to play: predict the winner of any match kicking off in the next 24 hours, or lock in your full-tournament awards and podium. The most accurate predictions win prizes."
         />
 
         {/* Segmented tab control */}

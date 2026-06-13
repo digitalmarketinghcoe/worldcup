@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { COUNTRIES } from "@/lib/data";
-import { fixturesOnDate, todayISO, fixtureLabel } from "@/lib/fixtures";
+import { fixtureLabel } from "@/lib/fixtures";
 import { getFixtures } from "@/lib/fixtures-api";
 
 // Always compute against the live clock — never statically cached.
@@ -8,16 +8,28 @@ export const dynamic = "force-dynamic";
 
 const FLAG = new Map(COUNTRIES.map((c) => [c.name, c.flag]));
 
-// Today's World Cup fixtures, sourced live from TheSportsDB (with static
-// fallback). Only matches that are not yet finished and have both teams
-// confirmed are returned — those are the ones a student can still predict.
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const date = url.searchParams.get("date") ?? todayISO();
+const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Upcoming fixtures within the next 24 hours, sourced live from TheSportsDB.
+// Only not-yet-started matches with both teams confirmed are returned.
+export async function GET() {
+  const now = Date.now();
+  const cutoff = now + WINDOW_MS;
 
   const all = await getFixtures();
-  const fixtures = fixturesOnDate(date, undefined, all)
-    .filter((f) => f.matchStatus !== 3 && f.homeTeam && f.awayTeam && f.eventId)
+  const fixtures = all
+    .filter((f) => {
+      const kickoff = new Date(f.date).getTime();
+      return (
+        kickoff > now &&
+        kickoff <= cutoff &&
+        f.matchStatus === 0 &&
+        f.homeTeam &&
+        f.awayTeam &&
+        f.eventId
+      );
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .map((f) => ({
       eventId: f.eventId,
       matchNumber: f.matchNumber,
@@ -34,5 +46,5 @@ export async function GET(request: Request) {
       status: f.matchStatus,
     }));
 
-  return NextResponse.json({ ok: true, date, fixtures });
+  return NextResponse.json({ ok: true, windowHours: 24, fixtures });
 }

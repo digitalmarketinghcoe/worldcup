@@ -22,7 +22,7 @@ const ACCENTS: Record<string, { text: string; glow: string }> = {
 
 export function Prizes() {
   return (
-    <section id="prizes" className="relative px-6 py-28 md:py-40 bg-grid-faint overflow-hidden">
+    <section id="prizes" aria-label="Prize Cabinet" className="relative px-6 py-28 md:py-40 bg-grid-faint overflow-hidden">
       {/* 3D trophy — floats right side behind cards */}
       <div
         className="absolute -right-24 top-1/2 -translate-y-1/2 w-[500px] h-[500px] opacity-20 pointer-events-none hidden lg:block"

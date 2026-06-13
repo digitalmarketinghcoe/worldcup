@@ -521,7 +521,7 @@ function PlayerCard({ player }: { player: Player }) {
 
 export function MatchCenter() {
   return (
-    <section id="matches" className="relative px-6 py-28 md:py-40 bg-grid-faint">
+    <section id="matches" aria-label="FIFA World Cup 2026 Match Fixtures" className="relative px-6 py-28 md:py-40 bg-grid-faint">
       <div className="mx-auto max-w-7xl">
         <SectionHeading
           kicker="Match Center"

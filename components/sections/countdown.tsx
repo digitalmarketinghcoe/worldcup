@@ -68,7 +68,7 @@ export function Countdown() {
   }, []);
 
   return (
-    <section id="countdown" className="relative px-6 py-28 md:py-36 overflow-hidden">
+    <section id="countdown" aria-label="Countdown to FIFA World Cup 2026" className="relative px-6 py-28 md:py-36 overflow-hidden">
       <div
         className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_50%,rgba(7,17,36,0.9),transparent)]"
         aria-hidden="true"

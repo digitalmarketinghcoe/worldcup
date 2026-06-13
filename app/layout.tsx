@@ -30,30 +30,40 @@ export const metadata: Metadata = {
     template: "%s | HCOE Fan Zone 2026",
   },
   description:
-    "Himalaya College of Engineering presents the FIFA World Cup 2026 Fan Zone. Predict matches, climb the leaderboard, win prizes. Engineering meets football.",
+    "Himalaya College of Engineering presents the FIFA World Cup 2026 Fan Zone. Predict match winners, climb the leaderboard, and win prizes. Join students and faculty at HCOE Nepal.",
   keywords: [
     "HCOE",
     "Himalaya College of Engineering",
-    "World Cup 2026",
+    "FIFA World Cup 2026",
+    "World Cup 2026 Nepal",
     "fan zone",
     "football predictions",
+    "match predictions",
     "Nepal engineering college",
+    "USA Canada Mexico 2026",
+    "leaderboard",
+    "prize cabinet",
+    "World Cup fan experience",
   ],
+  alternates: {
+    canonical: siteUrl,
+  },
   openGraph: {
-    title: "HCOE World Cup Fan Zone 2026",
+    title: "HCOE World Cup Fan Zone 2026 — Engineering Meets Football",
     description:
-      "Predict. Compete. Celebrate. The FIFA World Cup 2026 fan experience, powered by HCOE.",
+      "Predict. Compete. Celebrate. The FIFA World Cup 2026 fan experience, powered by Himalaya College of Engineering, Nepal.",
     url: siteUrl,
     siteName: "HCOE Fan Zone 2026",
     type: "website",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "HCOE World Cup Fan Zone 2026" }],
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
     title: "HCOE World Cup Fan Zone 2026",
-    description: "Engineering meets football. Predict matches, win prizes.",
+    description:
+      "Engineering meets football. Predict match winners, climb the leaderboard, win prizes. Powered by Himalaya College of Engineering, Nepal.",
   },
-  robots: { index: true, follow: true },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
 };
 
 export const viewport: Viewport = {

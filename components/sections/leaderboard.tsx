@@ -114,7 +114,7 @@ export function Leaderboard() {
   const maxPoints = top?.points ?? 1;
 
   return (
-    <section id="leaderboard" className="relative px-6 py-28 md:py-40">
+    <section id="leaderboard" aria-label="Prediction Leaderboard" className="relative px-6 py-28 md:py-40">
       <div className="mx-auto max-w-4xl">
         <SectionHeading
           kicker="Live Standings"

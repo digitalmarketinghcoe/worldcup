@@ -42,7 +42,7 @@ const STATS = [
 
 export function Intro() {
   return (
-    <section id="intro" className="relative px-6 py-28 md:py-40">
+    <section id="intro" aria-label="About FIFA World Cup 2026" className="relative px-6 py-28 md:py-40">
       <div className="mx-auto max-w-6xl">
         <SectionHeading
           kicker="The Biggest World Cup Ever"
