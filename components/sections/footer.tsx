@@ -29,7 +29,7 @@ export function Footer() {
         </nav>
       </div>
       <p className="mt-10 text-center text-[0.65rem] uppercase tracking-[0.2em] text-frost/30">
-        © 2026 Himalaya College of Engineering · Lalitpur, Nepal · Not affiliated with FIFA · Built with ❤️ by Cherry Holdings
+        © 2026 Himalaya College of Engineering · Lalitpur, Nepal · Not affiliated with FIFA · Built with passion by Saurashya
       </p>
     </footer>
   );
