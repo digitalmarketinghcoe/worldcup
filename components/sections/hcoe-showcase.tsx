@@ -40,13 +40,13 @@ export function HcoeShowcase() {
         </Stagger>
 
         <Reveal className="mt-16 text-center" delay={0.1}>
-          <div className="glass glass-crimson inline-flex flex-col items-center gap-6 rounded-3xl px-12 py-12 md:px-20">
+          <div className="glass glass-crimson inline-flex flex-col items-center gap-6 rounded-3xl px-12 py-6 md:px-20">
             <Image
               src="/Himalaya_Logo_White.png"
               alt="Himalaya College of Engineering"
               width={300}
               height={80}
-              className="h-28 w-auto opacity-95 drop-shadow-[0_6px_32px_rgba(226,232,240,0.2)]"
+              className="h-42 w-auto opacity-95 drop-shadow-[0_6px_32px_rgba(226,232,240,0.2)]"
             />
             <p className="text-display text-2xl md:text-3xl text-frost/80 tracking-wide">
               Himalaya College of Engineering
