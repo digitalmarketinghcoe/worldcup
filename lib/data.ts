@@ -735,7 +735,9 @@ export const PROGRAMS = [
   "BE Civil",
   "BE Electronics & Communication",
   "B. Architecture",
-  "Other",
+  "Bsc.CSIT",
+  "BCA",
+  "Faculty",
 ];
 
 export const HCOE_SHOWCASE = [

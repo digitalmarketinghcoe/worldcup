@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SectionHeading, Stagger, StaggerItem } from "@/components/motion/reveal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Image from "next/image";
-import { COUNTRIES, PLAYERS, PLAYER_STAT_MAX, FIFA_FIXTURES, fixtureLabel, type Player, type Confederation } from "@/lib/data";
+import { COUNTRIES, PLAYERS, PLAYER_STAT_MAX, fixtureLabel, type Player, type Confederation } from "@/lib/data";
 import type { FifaFixture } from "@/lib/fixtures";
 
 // ─── shared filter pill ───────────────────────────────────────────────────────
@@ -120,13 +120,72 @@ function FixtureRow({ fixture }: { fixture: FifaFixture }) {
 
 const PAGE_SIZE = 10;
 
+// Maps the /api/fixtures response back to the FifaFixture shape FixtureRow uses.
+type ApiFixture = {
+  eventId: string | null;
+  matchNumber: number;
+  stage: FifaFixture["stage"];
+  group: FifaFixture["group"];
+  kickoff: string;
+  venue: string;
+  city: string;
+  homeTeam: string | null;
+  awayTeam: string | null;
+  homeAbbr: string | null;
+  awayAbbr: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  status: FifaFixture["matchStatus"];
+  placeholderA: string;
+  placeholderB: string;
+};
+
+function toFifaFixture(f: ApiFixture): FifaFixture {
+  return {
+    matchNumber: f.matchNumber,
+    stage: f.stage,
+    group: f.group,
+    date: f.kickoff,
+    venue: f.venue,
+    city: f.city,
+    homeTeam: f.homeTeam,
+    awayTeam: f.awayTeam,
+    homeAbbr: f.homeAbbr,
+    awayAbbr: f.awayAbbr,
+    placeholderA: f.placeholderA,
+    placeholderB: f.placeholderB,
+    homeScore: f.homeScore,
+    awayScore: f.awayScore,
+    matchStatus: f.status,
+    eventId: f.eventId,
+  };
+}
+
 function FixturesPanel() {
   const [group, setGroup] = React.useState<GroupFilter>("All");
   const [page, setPage] = React.useState(1);
+  const [fixtures, setFixtures] = React.useState<FifaFixture[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let active = true;
+    fetch("/api/fixtures")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!active) return;
+        const list: ApiFixture[] = data.fixtures ?? [];
+        setFixtures(list.map(toFifaFixture));
+      })
+      .catch(() => {})
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = group === "All"
-    ? FIFA_FIXTURES
-    : FIFA_FIXTURES.filter((f) => f.group === `Group ${group}`);
+    ? fixtures
+    : fixtures.filter((f) => f.group === `Group ${group}`);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -141,10 +200,13 @@ function FixturesPanel() {
       <div className="grid gap-3 max-w-3xl mx-auto">
         <AnimatePresence mode="popLayout">
           {pageItems.map((f) => (
-            <FixtureRow key={f.matchNumber} fixture={f} />
+            <FixtureRow key={f.eventId ?? `m${f.matchNumber}`} fixture={f} />
           ))}
         </AnimatePresence>
-        {filtered.length === 0 && (
+        {loading && fixtures.length === 0 && (
+          <p className="text-center text-frost/35 py-10 text-sm">Loading fixtures…</p>
+        )}
+        {!loading && filtered.length === 0 && (
           <p className="text-center text-frost/35 py-10 text-sm">No fixtures for Group {group}.</p>
         )}
       </div>

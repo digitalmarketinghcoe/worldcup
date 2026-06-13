@@ -52,7 +52,7 @@ flowchart LR
     C --> D[Countdown urgency]
     D --> E[Prediction form]
     E --> F[POST /api/predict]
-    F -->|valid| G[Apps Script → Google Sheet]
+    F -->|valid| G[Supabase predictions table]
     F -->|invalid| E
     G --> H[Animated success + share card]
     H --> I[WhatsApp / Facebook / IG story export]
@@ -67,17 +67,15 @@ sequenceDiagram
     participant U as Student
     participant F as Prediction Form (client)
     participant R as /api/predict (Route Handler)
-    participant S as Google Apps Script
-    participant G as Google Sheet
+    participant S as Supabase (Postgres)
 
     U->>F: Fill name, ID, program, awards, podium, final, Best XI
     F->>F: Client-side validation
     F->>R: POST JSON
     R->>R: Server-side validation (country whitelist, podium uniqueness)
-    R->>S: fetch POST + shared secret
-    S->>S: Verify secret
-    S->>G: appendRow()
-    S-->>R: { ok: true }
+    R->>S: insert via service-role client (RLS bypassed server-side only)
+    S->>S: CHECK constraints + unique student_id index
+    S-->>R: { ok } or 23505 duplicate
     R-->>F: { ok: true }
     F->>U: Success animation + canvas share card
 ```

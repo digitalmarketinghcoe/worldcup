@@ -3,19 +3,20 @@
 ## 1. Prerequisites
 
 - Node 20+
-- A Google account (for the prediction sheet)
+- A Supabase account (free tier is enough) — [supabase.com](https://supabase.com)
 - A Vercel account (recommended host) or any Node host
 
-## 2. Wire up the Google Sheets backend
+## 2. Wire up the Supabase backend
 
-1. Create a sheet at [sheets.new](https://sheets.new), name it **WC2026 Predictions**.
-2. `Extensions → Apps Script`, replace the default file with [apps-script/Code.gs](../apps-script/Code.gs).
-3. In the Apps Script editor: `Project Settings → Script properties` → add property
-   `SECRET` with a long random string (e.g. output of `openssl rand -hex 24`).
-4. `Deploy → New deployment → Web app`:
-   - **Execute as:** Me
-   - **Who has access:** Anyone
-5. Copy the web-app URL.
+1. Create a new project at [database.new](https://database.new).
+2. In the dashboard, open **SQL Editor** and run
+   [supabase/migrations/0001_predictions.sql](../supabase/migrations/0001_predictions.sql).
+   This creates the `predictions` table with validation checks, a
+   one-entry-per-student unique index, and RLS enabled (deny-all — only the
+   server's service-role key can write).
+3. Go to **Settings → API** and copy:
+   - **Project URL** → `SUPABASE_URL`
+   - **service_role key** → `SUPABASE_SERVICE_ROLE_KEY`
 
 ## 3. Environment variables
 
@@ -23,12 +24,17 @@ Copy `.env.example` to `.env.local` and fill in:
 
 ```bash
 NEXT_PUBLIC_SITE_URL=https://your-domain.example
-GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/AKfy.../exec
-GOOGLE_SCRIPT_SECRET=<same value as the SECRET script property>
+SUPABASE_URL=https://<ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<service-role secret>
 ```
 
-Without `GOOGLE_SCRIPT_URL` the app still runs — predictions are accepted and
+Without the Supabase vars the app still runs — predictions are accepted and
 logged server-side only (dev fallback), so the UI flow is testable immediately.
+
+> **Security:** the service-role key bypasses Row Level Security. It is only
+> ever read inside [lib/supabase-server.ts](../lib/supabase-server.ts) (guarded
+> by `server-only`) and never shipped to the browser. The browser only talks
+> to `/api/predict`.
 
 ## 4. Local development
 
@@ -46,12 +52,10 @@ npx vercel
 Set the three environment variables in **Vercel → Project → Settings →
 Environment Variables**, then promote to production with `npx vercel --prod`.
 
-The secret stays server-side: the browser only ever talks to `/api/predict`;
-the Route Handler attaches `GOOGLE_SCRIPT_SECRET` when forwarding to Apps Script.
-
 ## 6. Post-deploy checklist
 
-- [ ] Submit a test prediction → row appears in the sheet
+- [ ] Submit a test prediction → row appears in Supabase **Table Editor → predictions**
+- [ ] Submit again with the same student ID → friendly "already submitted" error
 - [ ] OG card renders (paste URL into a WhatsApp chat) — add a real `public/og.png` (1200×630)
 - [ ] Lighthouse run: Performance / SEO / Accessibility / Best Practices
 - [ ] Test at 375px width (oldest common phone size on campus)
@@ -59,7 +63,24 @@ the Route Handler attaches `GOOGLE_SCRIPT_SECRET` when forwarding to Apps Script
 
 ## 7. Updating content
 
-All tournament content lives in [lib/data.ts](../lib/data.ts):
-fixtures, countries, players, leaderboard standings, prizes, programs.
-Update standings there after each match day (or replace `LEADERBOARD` with a
-fetch from the sheet via a second Apps Script `doGet`).
+Fixtures are **live** — pulled from TheSportsDB (FIFA World Cup, league 4429,
+season 2026) at request time by [lib/fixtures-api.ts](../lib/fixtures-api.ts),
+which serves the group stage with real scores + status and merges the knockout
+skeleton from [lib/fixtures.ts](../lib/fixtures.ts). If the API is unreachable
+the app falls back to the static `FIFA_FIXTURES` array, so it always renders.
+Set `THESPORTSDB_KEY` for higher rate limits (defaults to the free test key).
+
+Everything else lives in [lib/data.ts](../lib/data.ts): countries, players,
+leaderboard standings, prizes, programs. Update standings there after each match
+day (or build a leaderboard from the `predictions` tables with a Supabase query).
+
+## 8. Viewing / exporting entries
+
+Supabase dashboard → **Table Editor → predictions**. Export as CSV from the
+table view, or query in the SQL editor, e.g.:
+
+```sql
+select full_name, student_id, first_place, golden_ball, created_at
+from public.predictions
+order by created_at desc;
+```

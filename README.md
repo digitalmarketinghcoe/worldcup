@@ -24,10 +24,11 @@ Open [http://localhost:3000](http://localhost:3000).
 | shadcn-style UI primitives | `components/ui/` |
 | Tournament content (fixtures, teams, players, standings) | `lib/data.ts` |
 | Share-card PNG generator | `lib/share-card.ts` |
-| Prediction API (validates + forwards to Google Sheet) | `app/api/predict/route.ts` |
-| Google Apps Script backend | `apps-script/Code.gs` |
+| Prediction API (validates + writes to Supabase) | `app/api/predict/route.ts` |
+| Supabase server client (service-role, server-only) | `lib/supabase-server.ts` |
+| Database schema (predictions table + RLS) | `supabase/migrations/0001_predictions.sql` |
 | Architecture & motion diagrams | `docs/architecture.md` |
-| Deployment guide (Sheets + Vercel) | `docs/deployment.md` |
+| Deployment guide (Supabase + Vercel) | `docs/deployment.md` |
 | Higgsfield video prompts | `creative/higgsfield-prompts/` |
 
 ## Stack
@@ -43,5 +44,5 @@ Framer Motion · React Three Fiber / Three.js · Lenis smooth scroll.
 
 ## Deploy
 
-See [docs/deployment.md](docs/deployment.md) — wire the Google Sheet via Apps
-Script, set three env vars, `npx vercel --prod`.
+See [docs/deployment.md](docs/deployment.md) — create a Supabase project, run
+the migration, set three env vars, `npx vercel --prod`.

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { COUNTRIES, PROGRAMS } from "@/lib/data";
+import { getSupabaseAdmin } from "@/lib/supabase-server";
 
 type PredictionPayload = {
   fullName: string;
@@ -96,47 +97,46 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, errors }, { status: 422 });
   }
 
-  const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
-  const record = {
-    timestamp: new Date().toISOString(),
-    fullName: body.fullName!.trim(),
-    studentId: body.studentId!.trim(),
-    program: body.program,
-    goldenBall: body.goldenBall!.trim(),
-    goldenBoot: body.goldenBoot!.trim(),
-    youngPlayer: body.youngPlayer!.trim(),
-    goldenGloves: body.goldenGloves!.trim(),
-    finalScore: body.finalScore!.trim(),
-    finalTeam: body.finalTeam,
-    finalMatchGoalScorer: body.finalMatchGoalScorer!.trim(),
-    bestXI: body.bestXI!.trim(),
-    firstPlace: body.firstPlace,
-    secondPlace: body.secondPlace,
-    thirdPlace: body.thirdPlace,
-    secret: process.env.GOOGLE_SCRIPT_SECRET ?? "",
+  const row = {
+    full_name: body.fullName!.trim(),
+    student_id: body.studentId!.trim(),
+    program: body.program!,
+    golden_ball: body.goldenBall!.trim(),
+    golden_boot: body.goldenBoot!.trim(),
+    young_player: body.youngPlayer!.trim(),
+    golden_gloves: body.goldenGloves!.trim(),
+    final_score: body.finalScore!.trim(),
+    final_team: body.finalTeam!,
+    final_match_goal_scorer: body.finalMatchGoalScorer!.trim(),
+    best_xi: body.bestXI!.trim(),
+    first_place: body.firstPlace!,
+    second_place: body.secondPlace!,
+    third_place: body.thirdPlace!,
   };
 
-  if (!scriptUrl) {
-    // Dev fallback: accept locally so the UI flow works before the sheet is wired up.
-    console.warn("GOOGLE_SCRIPT_URL not set — prediction logged locally only:", record);
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    // Dev fallback: accept locally so the UI flow works before Supabase is wired up.
+    console.warn("Supabase env not set — prediction logged locally only:", row);
     return NextResponse.json({ ok: true, stored: "local" });
   }
 
-  try {
-    const res = await fetch(scriptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(record),
-      // Apps Script web apps respond with a 302 to the result; follow it.
-      redirect: "follow",
-    });
-    if (!res.ok) throw new Error(`Apps Script responded ${res.status}`);
-    return NextResponse.json({ ok: true, stored: "sheet" });
-  } catch (err) {
-    console.error("Prediction forwarding failed:", err);
+  const { error } = await supabase.from("predictions").insert(row);
+
+  if (error) {
+    // 23505 = unique_violation — student already submitted an entry
+    if (error.code === "23505") {
+      return NextResponse.json(
+        { ok: false, errors: ["This student ID has already submitted a prediction."] },
+        { status: 409 },
+      );
+    }
+    console.error("Prediction insert failed:", error);
     return NextResponse.json(
       { ok: false, errors: ["Could not save your prediction. Try again in a moment."] },
       { status: 502 },
     );
   }
+
+  return NextResponse.json({ ok: true, stored: "supabase" });
 }

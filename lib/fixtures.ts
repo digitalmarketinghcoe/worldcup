@@ -77,6 +77,9 @@ export interface FifaFixture {
   awayScore: number | null;
   /** 0=upcoming 1=live 3=finished */
   matchStatus: MatchStatus;
+  /** Stable provider event id (TheSportsDB idEvent) — present on live fixtures,
+   *  null for the static knockout skeleton. This is the key daily predictions use. */
+  eventId?: string | null;
 }
 
 // ── Derived helpers ───────────────────────────────────────────────────────────
@@ -141,6 +144,40 @@ export function upcomingFixtures(limit?: number): FifaFixture[] {
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
   return limit ? list.slice(0, limit) : list;
+}
+
+// ── Day-based helpers (for the daily-match prediction form) ──────────────────
+// Site audience is in Nepal, so "today" is resolved in Asia/Kathmandu by default.
+
+const DAY_TZ = "Asia/Kathmandu";
+
+/** YYYY-MM-DD for "now" in the given IANA timezone. */
+export function todayISO(timeZone: string = DAY_TZ): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+/** Fixtures whose kickoff falls on the given local calendar date (YYYY-MM-DD).
+ *  Pass a live fixture list (from lib/fixtures-api) to filter real-time data;
+ *  defaults to the static skeleton for offline/test use. */
+export function fixturesOnDate(
+  dateISO: string,
+  timeZone: string = DAY_TZ,
+  fixtures: FifaFixture[] = FIFA_FIXTURES
+): FifaFixture[] {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return fixtures.filter((f) => fmt.format(new Date(f.date)) === dateISO).sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
 }
 
 // ── Official 48-team roster by group ─────────────────────────────────────────

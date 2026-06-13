@@ -49,3 +49,6 @@ next-env.d.ts
 
 .node_modules
 agents copy.md
+/supabase
+/.claude
+/graphify-out
