@@ -25,7 +25,9 @@ type ResultRow = {
   match_number: number | null;
 };
 
-type ResultMap = Map<string, { outcome: Outcome; dateMs: number; matchNumber: number }>;
+// Keyed by match_number (stable across API providers — event_id differs between
+// TheSportsDB and ESPN, but match_number is always the official FIFA match number).
+type ResultMap = Map<number, { outcome: Outcome; dateMs: number; matchNumber: number }>;
 
 /**
  * Fetch finished matches from TheSportsDB and upsert into match_results.
@@ -63,7 +65,7 @@ export async function syncMatchResults(supabase: SupabaseClient): Promise<Result
         synced_at: new Date().toISOString(),
       });
 
-      map.set(f.eventId, {
+      map.set(f.matchNumber, {
         outcome,
         dateMs: new Date(f.date).getTime(),
         matchNumber: f.matchNumber,
@@ -95,10 +97,11 @@ async function loadPersistedResults(supabase: SupabaseClient): Promise<ResultMap
     return map;
   }
   for (const r of (data ?? []) as ResultRow[]) {
-    map.set(r.event_id, {
+    if (r.match_number == null) continue;
+    map.set(r.match_number, {
       outcome: r.outcome,
       dateMs: r.kicked_off_at ? new Date(r.kicked_off_at).getTime() : 0,
-      matchNumber: r.match_number ?? 0,
+      matchNumber: r.match_number,
     });
   }
   return map;
@@ -159,12 +162,12 @@ export async function computeLeaderboard(
   const seen = new Set<string>();
 
   for (const p of predictions) {
-    const actual = results.get(p.event_id);
+    const actual = results.get(p.match_number);
     if (!actual) continue; // match not finished yet — skip
 
     // Faculty without student ID falls back to name as dedup key
     const key = (p.student_id ?? `name:${p.full_name}`).toLowerCase();
-    const predictionKey = `${key}:${p.event_id}`;
+    const predictionKey = `${key}:${p.match_number}`;
     if (seen.has(predictionKey)) continue;
     seen.add(predictionKey);
 

@@ -1,13 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Live FIFA World Cup 2026 fixtures — TheSportsDB
+// Live FIFA World Cup 2026 fixtures — ESPN scoreboard API
 //
-// League 4429 ("FIFA World Cup"), season 2026. The free API serves the 72
-// group-stage matches round-by-round (intRound 1–3) with live scores + status.
-// Knockout fixtures (matches 73–104) are not published by the provider yet
-// (participants are TBD), so they come from the static skeleton in lib/fixtures.
+// Single request covers all 104 matches (group + knockout) for the full
+// tournament window (2026-06-11 → 2026-07-19) with live scores + status.
+// Group-stage metadata (match number, group, city, abbreviations) is inherited
+// from the static dataset via canonical home__away pair lookup.
+// Knockout fixtures are matched by kickoff time to the static skeleton.
 //
-// On any network/parse failure the whole thing falls back to the static
-// FIFA_FIXTURES array, so the site keeps working offline / if the API is down.
+// Falls back entirely to the static FIFA_FIXTURES array on any failure.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
@@ -18,25 +18,49 @@ import {
   type MatchStatus,
 } from "@/lib/fixtures";
 
-const KEY = process.env.THESPORTSDB_KEY ?? "3"; // "3" = free public test key
-const LEAGUE = "4429";
-const SEASON = "2026";
-const REVALIDATE_SECONDS = 300; // refresh live scores at most every 5 min
+const ESPN_URL =
+  "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260719&limit=200";
 
-// TheSportsDB team name → canonical name used in lib/data COUNTRIES.
+const REVALIDATE_SECONDS = 300;
+
+// ESPN displayName → canonical name used in lib/data COUNTRIES / static fixtures.
 const TEAM_ALIAS: Record<string, string> = {
   "Bosnia-Herzegovina": "Bosnia and Herzegovina",
   "Cape Verde": "Cabo Verde",
-  "Czech Republic": "Czechia",
-  "DR Congo": "Congo DR",
-  Iran: "IR Iran",
   "Ivory Coast": "Côte d'Ivoire",
+  Iran: "IR Iran",
   "South Korea": "Korea Republic",
-  Turkey: "Türkiye",
+  "United States": "USA",
 };
 
 function canonical(name: string): string {
   return TEAM_ALIAS[name] ?? name;
+}
+
+function isPlaceholder(name: string): boolean {
+  return (
+    name.includes("Winner") ||
+    name.includes("Loser") ||
+    name.includes("Place") ||
+    name.includes("Group ")
+  );
+}
+
+function mapStatus(typeName: string): MatchStatus {
+  if (
+    typeName === "STATUS_FULL_TIME" ||
+    typeName === "STATUS_FINAL" ||
+    typeName === "STATUS_FULL_PEN"
+  )
+    return 3;
+  if (
+    typeName === "STATUS_SCHEDULED" ||
+    typeName === "STATUS_POSTPONED" ||
+    typeName === "STATUS_CANCELLED" ||
+    typeName === "STATUS_TBD"
+  )
+    return 0;
+  return 1; // STATUS_IN_PROGRESS, STATUS_HALFTIME, etc.
 }
 
 // Reverse lookup: canonical team name → group.
@@ -45,8 +69,7 @@ for (const [group, teams] of Object.entries(FIFA_GROUPS)) {
   for (const t of teams) GROUP_OF.set(t, group as FifaGroup);
 }
 
-// Static group-stage fixtures keyed by canonical "home__away" — used to inherit
-// the official FIFA match number, city, and venue for live matches.
+// Static group-stage fixtures keyed by canonical "home__away".
 const STATIC_BY_PAIR = new Map<string, FifaFixture>();
 for (const f of FIFA_FIXTURES) {
   if (f.stage === "First Stage" && f.homeTeam && f.awayTeam) {
@@ -54,115 +77,156 @@ for (const f of FIFA_FIXTURES) {
   }
 }
 
-// Knockout skeleton (everything past the group stage) from the static dataset.
-const KNOCKOUT_SKELETON = FIFA_FIXTURES.filter((f) => f.stage !== "First Stage");
+// Static knockout fixtures keyed by kickoff time (ms) for date-based matching.
+const STATIC_KNOCKOUT_BY_MS = new Map<number, FifaFixture>();
+for (const f of FIFA_FIXTURES) {
+  if (f.stage !== "First Stage") {
+    STATIC_KNOCKOUT_BY_MS.set(new Date(f.date).getTime(), f);
+  }
+}
 
-type SportsDbEvent = {
-  idEvent: string;
-  strTimestamp: string | null;
-  dateEvent: string | null;
-  strTime: string | null;
-  strHomeTeam: string;
-  strAwayTeam: string;
-  intHomeScore: string | null;
-  intAwayScore: string | null;
-  strVenue: string | null;
-  strCountry: string | null;
-  intRound: string | null;
-  strStatus: string | null;
+type EspnTeam = {
+  homeAway: "home" | "away";
+  score: string | null;
+  team: { id: string; displayName: string; shortDisplayName: string };
 };
 
-function mapStatus(raw: string | null): MatchStatus {
-  if (!raw) return 0;
-  const s = raw.toUpperCase();
-  if (["FT", "AET", "PEN", "AWD", "WO"].includes(s)) return 3; // finished
-  if (["NS", "TBD", "PST", "CANC", "ABD", ""].includes(s)) return 0; // not started
-  return 1; // 1H, HT, 2H, ET, BT, LIVE, P …
-}
+type EspnEvent = {
+  id: string;
+  date: string;
+  name: string;
+  competitions: Array<{
+    status: { type: { name: string; completed?: boolean } };
+    venue?: { fullName?: string; address?: { city?: string } };
+    competitors: EspnTeam[];
+  }>;
+};
 
-function toUtcIso(e: SportsDbEvent): string {
-  // strTimestamp is UTC but lacks a "Z" suffix; normalise it.
-  if (e.strTimestamp) {
-    return e.strTimestamp.endsWith("Z") ? e.strTimestamp : `${e.strTimestamp}Z`;
+function toFixture(e: EspnEvent, idx: number): FifaFixture {
+  const comp = e.competitions[0];
+  const teams = comp.competitors;
+  const homeTeamRaw = teams.find((t) => t.homeAway === "home");
+  const awayTeamRaw = teams.find((t) => t.homeAway === "away");
+
+  const homeRaw = homeTeamRaw?.team.displayName ?? "";
+  const awayRaw = awayTeamRaw?.team.displayName ?? "";
+  const homeTeam = isPlaceholder(homeRaw) ? null : canonical(homeRaw);
+  const awayTeam = isPlaceholder(awayRaw) ? null : canonical(awayRaw);
+
+  const matchStatus = mapStatus(comp.status.type.name);
+  const homeScore =
+    matchStatus !== 0 && homeTeamRaw?.score != null
+      ? Number(homeTeamRaw.score)
+      : null;
+  const awayScore =
+    matchStatus !== 0 && awayTeamRaw?.score != null
+      ? Number(awayTeamRaw.score)
+      : null;
+
+  // Group stage: inherit metadata from static fixture by canonical pair.
+  if (homeTeam && awayTeam) {
+    const staticMatch = STATIC_BY_PAIR.get(`${homeTeam}__${awayTeam}`);
+    if (staticMatch) {
+      return {
+        ...staticMatch,
+        date: e.date,
+        homeScore,
+        awayScore,
+        matchStatus,
+        eventId: e.id,
+      };
+    }
   }
-  if (e.dateEvent) return `${e.dateEvent}T${e.strTime ?? "00:00:00"}Z`;
-  return new Date().toISOString();
-}
 
-function toFixture(e: SportsDbEvent, idx: number): FifaFixture {
-  const home = canonical(e.strHomeTeam);
-  const away = canonical(e.strAwayTeam);
-  const staticMatch = STATIC_BY_PAIR.get(`${home}__${away}`);
+  // Knockout stage: match by kickoff time to static skeleton.
+  const kickoffMs = new Date(e.date).getTime();
+  const staticKnockout = STATIC_KNOCKOUT_BY_MS.get(kickoffMs);
+  if (staticKnockout) {
+    return {
+      ...staticKnockout,
+      // Overwrite teams only when ESPN now knows the real participants.
+      homeTeam: homeTeam ?? staticKnockout.homeTeam,
+      awayTeam: awayTeam ?? staticKnockout.awayTeam,
+      homeScore,
+      awayScore,
+      matchStatus,
+      eventId: e.id,
+    };
+  }
 
+  // Fallback: build a minimal fixture from ESPN data alone.
   return {
-    matchNumber: staticMatch?.matchNumber ?? 900 + idx,
+    matchNumber: 900 + idx,
     stage: "First Stage",
-    group: GROUP_OF.get(home) ?? null,
-    date: toUtcIso(e),
-    venue: e.strVenue ?? staticMatch?.venue ?? "",
-    city: staticMatch?.city ?? e.strCountry ?? "",
-    homeTeam: home,
-    awayTeam: away,
-    homeAbbr: staticMatch?.homeAbbr ?? null,
-    awayAbbr: staticMatch?.awayAbbr ?? null,
-    placeholderA: staticMatch?.placeholderA ?? "",
-    placeholderB: staticMatch?.placeholderB ?? "",
-    homeScore: e.intHomeScore != null ? Number(e.intHomeScore) : null,
-    awayScore: e.intAwayScore != null ? Number(e.intAwayScore) : null,
-    matchStatus: mapStatus(e.strStatus),
-    eventId: e.idEvent,
+    group: homeTeam ? (GROUP_OF.get(homeTeam) ?? null) : null,
+    date: e.date,
+    venue: comp.venue?.fullName ?? "",
+    city: comp.venue?.address?.city ?? "",
+    homeTeam,
+    awayTeam,
+    homeAbbr: null,
+    awayAbbr: null,
+    placeholderA: homeRaw,
+    placeholderB: awayRaw,
+    homeScore,
+    awayScore,
+    matchStatus,
+    eventId: e.id,
   };
-}
-
-async function fetchRound(round: number): Promise<SportsDbEvent[]> {
-  const url = `https://www.thesportsdb.com/api/v1/json/${KEY}/eventsround.php?id=${LEAGUE}&r=${round}&s=${SEASON}`;
-  const res = await fetch(url, { next: { revalidate: REVALIDATE_SECONDS } });
-  if (!res.ok) throw new Error(`TheSportsDB round ${round}: HTTP ${res.status}`);
-  const data = (await res.json()) as { events: SportsDbEvent[] | null };
-  return data.events ?? [];
 }
 
 let warned = false;
 
 /**
- * All World Cup 2026 fixtures: live group stage (TheSportsDB) merged with the
- * static knockout skeleton. Falls back entirely to the static dataset on error.
+ * All World Cup 2026 fixtures with live scores from ESPN.
+ * Single network request covers all 104 matches.
+ * Falls back to static dataset on error.
  */
 export async function getFixtures(): Promise<FifaFixture[]> {
   try {
-    const rounds = await Promise.all([fetchRound(1), fetchRound(2), fetchRound(3)]);
-    const events = rounds.flat();
-    if (events.length === 0) throw new Error("TheSportsDB returned no group-stage events");
+    const res = await fetch(ESPN_URL, {
+      next: { revalidate: REVALIDATE_SECONDS },
+    });
+    if (!res.ok) throw new Error(`ESPN scoreboard: HTTP ${res.status}`);
+    const data = (await res.json()) as { events?: EspnEvent[] };
+    const events = data.events ?? [];
+    if (events.length === 0) throw new Error("ESPN returned no events");
 
-    const live = events.map(toFixture);
+    const fixtures = events
+      .map((e, i) => toFixture(e, i))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // Free API key may only return a subset of group-stage matches.
-    // Back-fill from the static dataset for any pair not returned live,
-    // so the full 72-match group stage is always present.
-    const livePairs = new Set(live.map((f) => `${f.homeTeam}__${f.awayTeam}`));
-    const staticFill = FIFA_FIXTURES.filter(
+    // Fill any static fixtures not matched by ESPN (defensive — shouldn't happen).
+    const seenEventIds = new Set(fixtures.map((f) => f.eventId).filter(Boolean));
+    const seenPairs = new Set(
+      fixtures
+        .filter((f) => f.homeTeam && f.awayTeam)
+        .map((f) => `${f.homeTeam}__${f.awayTeam}`),
+    );
+    const fill = FIFA_FIXTURES.filter(
       (f) =>
-        f.stage === "First Stage" &&
         f.homeTeam &&
         f.awayTeam &&
-        !livePairs.has(`${f.homeTeam}__${f.awayTeam}`),
+        !seenPairs.has(`${f.homeTeam}__${f.awayTeam}`) &&
+        !seenEventIds.has(f.eventId ?? ""),
     );
 
-    const merged = [...live, ...staticFill, ...KNOCKOUT_SKELETON].sort(
+    return [...fixtures, ...fill].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
-    return merged;
   } catch (err) {
     if (!warned) {
-      console.warn("Live fixtures unavailable — using static fallback:", err);
+      console.warn("ESPN fixtures unavailable — using static fallback:", err);
       warned = true;
     }
     return FIFA_FIXTURES;
   }
 }
 
-/** Find a single fixture by its provider event id (live matches only). */
-export async function getFixtureByEventId(eventId: string): Promise<FifaFixture | null> {
+/** Find a single fixture by its ESPN event id. */
+export async function getFixtureByEventId(
+  eventId: string,
+): Promise<FifaFixture | null> {
   const all = await getFixtures();
   return all.find((f) => f.eventId === eventId) ?? null;
 }
