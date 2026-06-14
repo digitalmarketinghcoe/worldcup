@@ -7,6 +7,14 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { COUNTRIES } from "@/lib/data";
 
+function useIsTouch(): boolean {
+  const [touch, setTouch] = React.useState(false);
+  React.useEffect(() => {
+    setTouch(window.matchMedia("(pointer: coarse)").matches);
+  }, []);
+  return touch;
+}
+
 const HeroScene = dynamic(
   () => import("@/components/three/hero-scene").then((m) => m.HeroScene),
   { ssr: false }
@@ -39,8 +47,14 @@ function LoopVideo({
 }) {
   const ref = React.useRef<HTMLVideoElement>(null);
   React.useEffect(() => {
-    // Trigger play after mount; browsers may suspend autoplay without user gesture
-    ref.current?.play().catch(() => {/* silently ignore autoplay block */});
+    const v = ref.current;
+    if (!v) return;
+    const tryPlay = () => v.play().catch(() => {});
+    tryPlay();
+    // iOS pauses video when switching tabs — resume on visibility restore
+    const onVisible = () => { if (!document.hidden) tryPlay(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
   return (
     <video
@@ -49,7 +63,7 @@ function LoopVideo({
       autoPlay
       muted
       playsInline
-      preload="auto"
+      preload="metadata"
       className={className}
       style={style}
       aria-hidden="true"
@@ -59,6 +73,7 @@ function LoopVideo({
 
 export function Hero() {
   const reduce = useReducedMotion();
+  const isTouch = useIsTouch();
   const d = (t: number) => (reduce ? 0 : t);
 
   const scrollToPredict = () =>
@@ -114,15 +129,17 @@ export function Hero() {
       </motion.div>
 
       {/* ── Layer 3: Three.js — football + particles + pointer parallax ──── */}
-      <motion.div
-        className="absolute inset-0 z-[3]"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: d(T.scene), duration: 1.8, ease: EASE }}
-        aria-hidden="true"
-      >
-        <HeroScene />
-      </motion.div>
+      {!isTouch && (
+        <motion.div
+          className="absolute inset-0 z-[3]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: d(T.scene), duration: 1.8, ease: EASE }}
+          aria-hidden="true"
+        >
+          <HeroScene />
+        </motion.div>
+      )}
 
       {/* ── Layer 4: depth vignette keeps text crisp ─────────────────────── */}
       <div

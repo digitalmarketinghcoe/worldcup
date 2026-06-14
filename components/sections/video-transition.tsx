@@ -27,18 +27,23 @@ export function VideoTransition({
     const wrap = wrapRef.current;
     if (!video || !wrap) return;
 
-    // Play once when scrolled into view; never replay
+    const tryPlay = () => video.play().catch(() => {});
+
+    // Play when scrolled into view
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          video.play().catch(() => {});
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1 }
+      ([entry]) => { if (entry.isIntersecting) tryPlay(); },
+      { threshold: 0.1 },
     );
     observer.observe(wrap);
-    return () => observer.disconnect();
+
+    // iOS resumes from background/tab-switch in paused state — retry
+    const onVisible = () => { if (!document.hidden) tryPlay(); };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   const maskParts: Record<string, string | undefined> = {

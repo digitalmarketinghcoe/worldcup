@@ -80,30 +80,30 @@ function FixtureRow({ fixture }: { fixture: FifaFixture }) {
         <div className="col-span-3 text-center text-frost/35 text-sm py-2">{label}</div>
       ) : (
         <>
-          <div className="flex items-center justify-end gap-3 text-right">
-            <span className="font-medium text-frost text-sm md:text-base">{fixture.homeTeam}</span>
-            <span className="text-2xl md:text-3xl">{teamFlag(fixture.homeTeam)}</span>
+          <div className="flex items-center justify-end gap-2 text-right min-w-0">
+            <span className="font-medium text-frost text-xs sm:text-sm md:text-base truncate">{fixture.homeTeam}</span>
+            <span className="text-xl md:text-3xl shrink-0">{teamFlag(fixture.homeTeam)}</span>
           </div>
-          <div className="text-center px-2 md:px-5">
+          <div className="text-center px-1 sm:px-2 md:px-5 shrink-0">
             {isDone && fixture.homeScore !== null ? (
-              <span className="text-numeric block text-gold text-base md:text-xl font-semibold">
+              <span className="text-numeric block text-gold text-sm md:text-xl font-semibold whitespace-nowrap">
                 {fixture.homeScore} – {fixture.awayScore}
               </span>
             ) : isLive ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-crimson/20 px-2.5 py-0.5 text-[0.65rem] uppercase tracking-widest text-crimson font-semibold">
+              <span className="inline-flex items-center gap-1 rounded-full bg-crimson/20 px-2 py-0.5 text-[0.6rem] uppercase tracking-widest text-crimson font-semibold">
                 <span className="size-1.5 rounded-full bg-crimson animate-pulse-dot" />
                 LIVE
               </span>
             ) : (
-              <span className="text-numeric block text-gold text-base md:text-xl font-semibold">VS</span>
+              <span className="text-numeric block text-gold text-sm md:text-xl font-semibold">VS</span>
             )}
-            <span className="block text-[0.6rem] uppercase tracking-[0.16em] text-frost/40 mt-1 whitespace-nowrap">
+            <span className="block text-[0.55rem] uppercase tracking-[0.1em] text-frost/40 mt-1 whitespace-nowrap">
               {fixture.group ?? fixture.stage}
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-2xl md:text-3xl">{teamFlag(fixture.awayTeam)}</span>
-            <span className="font-medium text-frost text-sm md:text-base">{fixture.awayTeam}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xl md:text-3xl shrink-0">{teamFlag(fixture.awayTeam)}</span>
+            <span className="font-medium text-frost text-xs sm:text-sm md:text-base truncate">{fixture.awayTeam}</span>
           </div>
         </>
       )}
