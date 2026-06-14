@@ -731,7 +731,7 @@ export const PROGRAMS = [
   "B. Architecture",
   "Bsc.CSIT",
   "BCA",
-  "Faculty",
+  "Teacher/staff",
 ];
 
 export const HCOE_SHOWCASE = [
