@@ -135,7 +135,20 @@ export async function getFixtures(): Promise<FifaFixture[]> {
     if (events.length === 0) throw new Error("TheSportsDB returned no group-stage events");
 
     const live = events.map(toFixture);
-    const merged = [...live, ...KNOCKOUT_SKELETON].sort(
+
+    // Free API key may only return a subset of group-stage matches.
+    // Back-fill from the static dataset for any pair not returned live,
+    // so the full 72-match group stage is always present.
+    const livePairs = new Set(live.map((f) => `${f.homeTeam}__${f.awayTeam}`));
+    const staticFill = FIFA_FIXTURES.filter(
+      (f) =>
+        f.stage === "First Stage" &&
+        f.homeTeam &&
+        f.awayTeam &&
+        !livePairs.has(`${f.homeTeam}__${f.awayTeam}`),
+    );
+
+    const merged = [...live, ...staticFill, ...KNOCKOUT_SKELETON].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
     return merged;
