@@ -9,10 +9,16 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
+  ChevronLeft,
+  ChevronRight,
   RefreshCw,
   Trophy,
   Swords,
+  Calendar,
+  GraduationCap,
 } from "lucide-react";
+
+const PAGE_SIZE = 25;
 
 type Row = Record<string, unknown>;
 type Column = { key: string; label: string; width?: string };
@@ -109,8 +115,10 @@ export function AdminDashboard() {
   const [data, setData] = React.useState<Record<TabId, Row[]>>({ predictions: [], matchPredictions: [] });
   const [loading, setLoading] = React.useState(true);
   const [error,   setError]   = React.useState("");
-  const [query,   setQuery]   = React.useState("");
-  const [sort,    setSort]    = React.useState<{ key: string; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+  const [query,     setQuery]     = React.useState("");
+  const [program,   setProgram]   = React.useState("all");
+  const [sort,      setSort]      = React.useState<{ key: string; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+  const [page,      setPage]      = React.useState(1);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -133,11 +141,17 @@ export function AdminDashboard() {
   const cols = TABS.find((t) => t.id === tab)!.cols;
   const rows = data[tab];
 
+  // Unique programs for filter dropdown
+  const programs = React.useMemo(() => {
+    const all = rows.map((r) => String(r.program ?? "")).filter(Boolean);
+    return ["all", ...Array.from(new Set(all)).sort()];
+  }, [rows]);
+
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    let out = q
-      ? rows.filter((r) => cols.some((c) => fmtCell(c.key, r[c.key]).toLowerCase().includes(q)))
-      : rows;
+    let out = rows;
+    if (program !== "all") out = out.filter((r) => String(r.program ?? "") === program);
+    if (q) out = out.filter((r) => cols.some((c) => fmtCell(c.key, r[c.key]).toLowerCase().includes(q)));
     const { key, dir } = sort;
     const sign = dir === "asc" ? 1 : -1;
     return [...out].sort((a, b) => {
@@ -146,10 +160,19 @@ export function AdminDashboard() {
       if (Number.isFinite(an) && Number.isFinite(bn) && av !== "" && bv !== "") return (an - bn) * sign;
       return fmtCell(key, av).localeCompare(fmtCell(key, bv)) * sign;
     });
-  }, [rows, cols, query, sort]);
+  }, [rows, cols, query, program, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Reset page whenever filters/sort/tab change
+  React.useEffect(() => { setPage(1); }, [query, program, sort, tab]);
 
   const toggleSort = (key: string) =>
     setSort((s) => s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" });
+
+  const quickSort = (key: string, dir: "asc" | "desc") =>
+    setSort((s) => s.key === key && s.dir === dir ? { key: "created_at", dir: "desc" } : { key, dir });
 
   const exportExcel = async () => {
     const XLSX = await import("xlsx");
@@ -214,7 +237,7 @@ export function AdminDashboard() {
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard label="Tournament Predictions" value={data.predictions.length}   color="text-gold"   />
           <StatCard label="Match Picks"             value={data.matchPredictions.length} color="text-turf" />
-          <StatCard label="Showing"                 value={filtered.length}           color="text-frost"  />
+          <StatCard label="Showing"                 value={`${filtered.length} / ${rows.length}`} color="text-frost" isText />
           <StatCard label="Table"                   value={activeTab.label}           color="text-frost/60" isText />
         </div>
 
@@ -226,7 +249,7 @@ export function AdminDashboard() {
             return (
               <button
                 key={t.id}
-                onClick={() => { setTab(t.id); setQuery(""); setSort({ key: "created_at", dir: "desc" }); }}
+                onClick={() => { setTab(t.id); setQuery(""); setProgram("all"); setSort({ key: "created_at", dir: "desc" }); }}
                 className={`relative inline-flex items-center gap-2 rounded-t-lg px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
                   active
                     ? "bg-white/6 text-frost border border-b-0 border-frost/12"
@@ -248,7 +271,8 @@ export function AdminDashboard() {
 
         {/* ── Toolbar ────────────────────────────────────────────────── */}
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[180px] max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-frost/35" aria-hidden="true" />
             <input
               value={query}
@@ -257,11 +281,67 @@ export function AdminDashboard() {
               className="w-full rounded-lg border border-frost/12 bg-white/5 py-2 pl-9 pr-4 text-sm text-frost placeholder:text-frost/30 outline-none focus:border-gold/50 focus:bg-white/7 transition-colors"
             />
           </div>
-          {query && (
-            <span className="text-xs text-frost/45">
-              {filtered.length} of {rows.length} rows
-            </span>
-          )}
+
+          {/* Quick sort: Date */}
+          <div className="flex items-center gap-1 rounded-lg border border-frost/10 bg-white/[0.03] px-2 py-1">
+            <Calendar className="size-3 text-frost/30 mr-1" aria-hidden="true" />
+            <button
+              onClick={() => quickSort("created_at", "desc")}
+              title="Newest first"
+              className={`rounded px-2 py-0.5 text-xs font-medium transition-colors cursor-pointer ${
+                sort.key === "created_at" && sort.dir === "desc"
+                  ? "bg-gold/20 text-gold"
+                  : "text-frost/45 hover:text-frost"
+              }`}
+            >
+              Newest
+            </button>
+            <span className="text-frost/15 text-xs">|</span>
+            <button
+              onClick={() => quickSort("created_at", "asc")}
+              title="Oldest first"
+              className={`rounded px-2 py-0.5 text-xs font-medium transition-colors cursor-pointer ${
+                sort.key === "created_at" && sort.dir === "asc"
+                  ? "bg-gold/20 text-gold"
+                  : "text-frost/45 hover:text-frost"
+              }`}
+            >
+              Oldest
+            </button>
+          </div>
+
+          {/* Program filter */}
+          <div className="flex items-center gap-1.5 rounded-lg border border-frost/10 bg-white/[0.03] px-2 py-1">
+            <GraduationCap className="size-3 text-frost/30 shrink-0" aria-hidden="true" />
+            <select
+              value={program}
+              onChange={(e) => setProgram(e.target.value)}
+              className="bg-transparent text-xs text-frost/70 outline-none cursor-pointer max-w-[160px]"
+            >
+              <option value="all">All Programs</option>
+              {programs.slice(1).map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Quick sort: Program A→Z */}
+          <button
+            onClick={() => quickSort("program", sort.key === "program" && sort.dir === "asc" ? "desc" : "asc")}
+            title="Sort by program"
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+              sort.key === "program"
+                ? "border-gold/30 bg-gold/10 text-gold"
+                : "border-frost/10 bg-white/[0.03] text-frost/45 hover:text-frost"
+            }`}
+          >
+            <GraduationCap className="size-3" aria-hidden="true" />
+            Program
+            {sort.key === "program" && (
+              sort.dir === "asc" ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />
+            )}
+          </button>
+
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={exportExcel}
@@ -319,7 +399,7 @@ export function AdminDashboard() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((r, i) => (
+                  paged.map((r, i) => (
                     <tr
                       key={(r.id as string) ?? i}
                       className="border-t border-frost/[0.06] transition-colors hover:bg-white/[0.04]"
@@ -336,11 +416,70 @@ export function AdminDashboard() {
             </table>
           </div>
 
-          {/* Footer row count */}
+          {/* Pagination footer */}
           {!loading && !error && filtered.length > 0 && (
-            <div className="border-t border-frost/[0.06] bg-white/[0.02] px-4 py-2.5 text-right text-xs text-frost/30">
-              {filtered.length} {filtered.length === 1 ? "row" : "rows"}
-              {query && ` (filtered from ${rows.length})`}
+            <div className="border-t border-frost/[0.06] bg-white/[0.02] px-4 py-2.5 flex items-center justify-between gap-4 flex-wrap">
+              <span className="text-xs text-frost/30">
+                {filtered.length} {filtered.length === 1 ? "row" : "rows"}
+                {(query || program !== "all") && ` (filtered from ${rows.length})`}
+                {totalPages > 1 && ` · page ${page} of ${totalPages}`}
+              </span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage(1)}
+                    disabled={page === 1}
+                    className="rounded px-2 py-1 text-xs text-frost/40 hover:text-frost disabled:opacity-20 cursor-pointer disabled:cursor-default transition-colors"
+                  >
+                    «
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="rounded p-1 text-frost/40 hover:text-frost disabled:opacity-20 cursor-pointer disabled:cursor-default transition-colors"
+                  >
+                    <ChevronLeft className="size-3.5" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 2)
+                    .reduce<(number | "…")[]>((acc, n, idx, arr) => {
+                      if (idx > 0 && n - (arr[idx - 1] as number) > 1) acc.push("…");
+                      acc.push(n);
+                      return acc;
+                    }, [])
+                    .map((n, i) =>
+                      n === "…" ? (
+                        <span key={`ellipsis-${i}`} className="px-1 text-xs text-frost/20">…</span>
+                      ) : (
+                        <button
+                          key={n}
+                          onClick={() => setPage(n as number)}
+                          className={`min-w-[1.75rem] rounded px-1.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                            page === n
+                              ? "bg-gold/20 text-gold"
+                              : "text-frost/40 hover:text-frost"
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      )
+                    )}
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="rounded p-1 text-frost/40 hover:text-frost disabled:opacity-20 cursor-pointer disabled:cursor-default transition-colors"
+                  >
+                    <ChevronRight className="size-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setPage(totalPages)}
+                    disabled={page === totalPages}
+                    className="rounded px-2 py-1 text-xs text-frost/40 hover:text-frost disabled:opacity-20 cursor-pointer disabled:cursor-default transition-colors"
+                  >
+                    »
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
