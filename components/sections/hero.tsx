@@ -10,6 +10,7 @@ import { COUNTRIES } from "@/lib/data";
 function useIsTouch(): boolean {
   const [touch, setTouch] = React.useState(false);
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTouch(window.matchMedia("(pointer: coarse)").matches);
   }, []);
   return touch;

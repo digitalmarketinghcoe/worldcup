@@ -9,21 +9,15 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     const noMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const isTouch = window.matchMedia("(pointer: coarse)").matches;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActive(!noMotion && !isTouch);
   }, []);
 
-  if (!active) return <>{children}</>;
-
-  return (
-    <ReactLenis
-      root
-      options={{
-        lerp: 0.1,
-        wheelMultiplier: 1,
-        touchMultiplier: 1.4,
-      }}
-    >
+  return active ? (
+    <ReactLenis root options={{ lerp: 0.1, wheelMultiplier: 1, touchMultiplier: 1.4 }}>
       {children}
     </ReactLenis>
+  ) : (
+    <>{children}</>
   );
 }

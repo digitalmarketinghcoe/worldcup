@@ -110,7 +110,7 @@ export function Leaderboard() {
   }, []);
 
   const top = entries[0] ?? null;
-  const rest = entries.slice(1);
+  const rest = entries.slice(1, 10);
   const maxPoints = top?.points ?? 1;
 
   return (

@@ -163,10 +163,9 @@ export function AdminDashboard() {
   }, [rows, cols, query, program, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  // Reset page whenever filters/sort/tab change
-  React.useEffect(() => { setPage(1); }, [query, program, sort, tab]);
+  // Clamp page to valid range without an extra effect — if filters shrink total pages, show last valid page
+  const safePage = Math.min(page, totalPages);
+  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const toggleSort = (key: string) =>
     setSort((s) => s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" });
@@ -422,26 +421,26 @@ export function AdminDashboard() {
               <span className="text-xs text-frost/30">
                 {filtered.length} {filtered.length === 1 ? "row" : "rows"}
                 {(query || program !== "all") && ` (filtered from ${rows.length})`}
-                {totalPages > 1 && ` · page ${page} of ${totalPages}`}
+                {totalPages > 1 && ` · page ${safePage} of ${totalPages}`}
               </span>
               {totalPages > 1 && (
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setPage(1)}
-                    disabled={page === 1}
+                    disabled={safePage === 1}
                     className="rounded px-2 py-1 text-xs text-frost/40 hover:text-frost disabled:opacity-20 cursor-pointer disabled:cursor-default transition-colors"
                   >
                     «
                   </button>
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
+                    disabled={safePage === 1}
                     className="rounded p-1 text-frost/40 hover:text-frost disabled:opacity-20 cursor-pointer disabled:cursor-default transition-colors"
                   >
                     <ChevronLeft className="size-3.5" />
                   </button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 2)
+                    .filter((n) => n === 1 || n === totalPages || Math.abs(n - safePage) <= 2)
                     .reduce<(number | "…")[]>((acc, n, idx, arr) => {
                       if (idx > 0 && n - (arr[idx - 1] as number) > 1) acc.push("…");
                       acc.push(n);
@@ -455,7 +454,7 @@ export function AdminDashboard() {
                           key={n}
                           onClick={() => setPage(n as number)}
                           className={`min-w-[1.75rem] rounded px-1.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
-                            page === n
+                            safePage === n
                               ? "bg-gold/20 text-gold"
                               : "text-frost/40 hover:text-frost"
                           }`}
@@ -466,14 +465,14 @@ export function AdminDashboard() {
                     )}
                   <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
+                    disabled={safePage === totalPages}
                     className="rounded p-1 text-frost/40 hover:text-frost disabled:opacity-20 cursor-pointer disabled:cursor-default transition-colors"
                   >
                     <ChevronRight className="size-3.5" />
                   </button>
                   <button
                     onClick={() => setPage(totalPages)}
-                    disabled={page === totalPages}
+                    disabled={safePage === totalPages}
                     className="rounded px-2 py-1 text-xs text-frost/40 hover:text-frost disabled:opacity-20 cursor-pointer disabled:cursor-default transition-colors"
                   >
                     »
