@@ -73,10 +73,10 @@ export default function Home() {
         {/* Football kick — dramatic lead-in to the prediction form */}
         <VideoTransition src="/videos/football-kick.mp4" height="60vh" brightness={0.6} fade="none" />
         <Predictions />
-        <MatchCenter />
         {/* Stadium flythrough — cinematic break before leaderboard */}
         <VideoTransition src="/videos/stadium-flythrough.mp4" height="45vh" brightness={0.42} fade="none" />
         <Leaderboard />
+        <MatchCenter />
         <Prizes />
         <HcoeShowcase />
         <Footer />
