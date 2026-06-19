@@ -1,6 +1,12 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LeaderboardEntry } from "@/lib/data";
+import type {
+  MatchResultDetail,
+  MeResponse,
+  PendingPrediction,
+  PersonalEntry,
+} from "@/lib/me-types";
 import { getFixtures } from "@/lib/fixtures-api";
 import { fixtureLabel } from "@/lib/fixtures";
 
@@ -28,6 +34,12 @@ type ResultRow = {
 // Keyed by match_number (stable across API providers — event_id differs between
 // TheSportsDB and ESPN, but match_number is always the official FIFA match number).
 type ResultMap = Map<number, { outcome: Outcome; dateMs: number; matchNumber: number }>;
+
+type DetailedPredictionRow = PredictionRow & {
+  match_label: string | null;
+  home_team: string | null;
+  away_team: string | null;
+};
 
 /**
  * Fetch finished matches from TheSportsDB and upsert into match_results.
@@ -123,35 +135,34 @@ function longestStreak(
   return best;
 }
 
-/**
- * Build the ranked leaderboard from match predictions vs. finished fixture results.
- * 3 points per correctly predicted match winner.
- *
- * Flow:
- *  1. Sync finished matches from TheSportsDB → match_results (upsert, idempotent)
- *  2. If live API returned nothing, fall back to persisted match_results rows
- *  3. Score each user's predictions against actual outcomes
- */
-export async function computeLeaderboard(
-  supabase: SupabaseClient,
-): Promise<LeaderboardEntry[]> {
-  // 1. Sync live results → DB; get in-memory map for immediate use
-  let results = await syncMatchResults(supabase);
+async function buildScoredMap(supabase: SupabaseClient): Promise<{
+  resultsMap: ResultMap;
+  predictions: PredictionRow[];
+}> {
+  let resultsMap = await syncMatchResults(supabase);
 
-  // 2. Fallback: if live API gave nothing (TheSportsDB down / no matches yet),
-  //    read from previously persisted rows so history is never lost
-  if (results.size === 0) {
-    results = await loadPersistedResults(supabase);
+  if (resultsMap.size === 0) {
+    resultsMap = await loadPersistedResults(supabase);
   }
 
-  // 3. Fetch all match predictions
   const { data, error } = await supabase
     .from("match_predictions")
     .select("full_name, student_id, program, event_id, outcome, match_number");
   if (error) throw error;
 
-  const predictions = (data ?? []) as PredictionRow[];
+  return {
+    resultsMap,
+    predictions: (data ?? []) as PredictionRow[],
+  };
+}
 
+function scoreAndRank(
+  predictions: PredictionRow[],
+  resultsMap: ResultMap,
+): {
+  entries: LeaderboardEntry[];
+  rankMap: Map<string, number>;
+} {
   type Acc = {
     name: string;
     program: string;
@@ -162,7 +173,7 @@ export async function computeLeaderboard(
   const seen = new Set<string>();
 
   for (const p of predictions) {
-    const actual = results.get(p.match_number);
+    const actual = resultsMap.get(p.match_number);
     if (!actual) continue; // match not finished yet — skip
 
     // Faculty without student ID falls back to name as dedup key
@@ -187,7 +198,7 @@ export async function computeLeaderboard(
     byStudent.set(key, acc);
   }
 
-  return [...byStudent.values()]
+  const entries = [...byStudent.values()]
     .map((a) => ({
       name: a.name,
       program: a.program,
@@ -202,4 +213,190 @@ export async function computeLeaderboard(
         a.name.localeCompare(b.name),
     )
     .map((e, i) => ({ rank: i + 1, ...e }));
+
+  const rankedKeys = [...byStudent.entries()]
+    .map(([key, a]) => ({
+      key,
+      name: a.name,
+      points: a.correct * POINTS_PER_CORRECT,
+      correct: a.correct,
+    }))
+    .sort(
+      (a, b) =>
+        b.points - a.points ||
+        b.correct - a.correct ||
+        a.name.localeCompare(b.name),
+    );
+  const rankMap = new Map(rankedKeys.map((entry, index) => [entry.key, index + 1]));
+
+  return { entries, rankMap };
+}
+
+export function maskStudentId(id: string | null): string {
+  if (!id) return "";
+  if (id.length <= 4) return "***";
+  return `${id.slice(0, 3)}***${id.slice(-3)}`;
+}
+
+async function fetchDetailedPredictions(
+  supabase: SupabaseClient,
+  field: "student_id" | "full_name",
+  value: string,
+): Promise<DetailedPredictionRow[]> {
+  const { data, error } = await supabase
+    .from("match_predictions")
+    .select(
+      "full_name, student_id, program, event_id, outcome, match_number, match_label, home_team, away_team",
+    )
+    .eq(field, value);
+  if (error) throw error;
+  return (data ?? []) as DetailedPredictionRow[];
+}
+
+function buildPersonalEntry(
+  representative: PredictionRow,
+  detailed: DetailedPredictionRow[],
+  resultsMap: ResultMap,
+  rank: number,
+): PersonalEntry {
+  const seen = new Set<number>();
+  const finishedResults: MatchResultDetail[] = [];
+  const pendingPredictions: PendingPrediction[] = [];
+
+  for (const prediction of detailed) {
+    if (seen.has(prediction.match_number)) continue;
+    seen.add(prediction.match_number);
+
+    const actual = resultsMap.get(prediction.match_number);
+    const matchLabel = prediction.match_label ?? `Match ${prediction.match_number}`;
+    const homeTeam = prediction.home_team ?? "Home team";
+    const awayTeam = prediction.away_team ?? "Away team";
+
+    if (actual) {
+      const correct = prediction.outcome === actual.outcome;
+      finishedResults.push({
+        matchNumber: prediction.match_number,
+        matchLabel,
+        homeTeam,
+        awayTeam,
+        predicted: prediction.outcome,
+        actual: actual.outcome,
+        correct,
+        points: correct ? POINTS_PER_CORRECT : 0,
+        kickoffMs: actual.dateMs,
+      });
+    } else {
+      pendingPredictions.push({
+        matchNumber: prediction.match_number,
+        matchLabel,
+        homeTeam,
+        awayTeam,
+        predicted: prediction.outcome,
+      });
+    }
+  }
+
+  finishedResults.sort(
+    (a, b) => a.kickoffMs - b.kickoffMs || a.matchNumber - b.matchNumber,
+  );
+  const correctPredictions = finishedResults.filter((result) => result.correct).length;
+
+  return {
+    fullName: representative.full_name,
+    program: representative.program,
+    maskedStudentId: maskStudentId(representative.student_id),
+    rank,
+    totalPoints: correctPredictions * POINTS_PER_CORRECT,
+    correctPredictions,
+    incorrectPredictions: finishedResults.length - correctPredictions,
+    scoredPredictions: finishedResults.length,
+    bestStreak: longestStreak(
+      finishedResults.map((result) => ({
+        dateMs: result.kickoffMs,
+        matchNumber: result.matchNumber,
+        correct: result.correct,
+      })),
+    ),
+    scoringRule: "3 points per correct match prediction",
+    finishedResults,
+    pendingPredictions,
+  };
+}
+
+/**
+ * Build the ranked leaderboard from match predictions vs. finished fixture results.
+ * 3 points per correctly predicted match winner.
+ */
+export async function computeLeaderboard(
+  supabase: SupabaseClient,
+): Promise<LeaderboardEntry[]> {
+  const { resultsMap, predictions } = await buildScoredMap(supabase);
+  return scoreAndRank(predictions, resultsMap).entries;
+}
+
+export async function lookupPersonalScore(
+  supabase: SupabaseClient,
+  query: string,
+): Promise<MeResponse> {
+  const queryLower = query.toLowerCase();
+  const { resultsMap, predictions } = await buildScoredMap(supabase);
+  const { rankMap } = scoreAndRank(predictions, resultsMap);
+
+  const idCandidates = predictions.filter(
+    (prediction) =>
+      prediction.student_id != null &&
+      prediction.student_id.toLowerCase() === queryLower,
+  );
+  if (idCandidates.length > 0) {
+    const representative = idCandidates[0];
+    const studentKey = representative.student_id!.toLowerCase();
+    const rank = rankMap.get(studentKey) ?? 0;
+    const detailed = await fetchDetailedPredictions(
+      supabase,
+      "student_id",
+      representative.student_id!,
+    );
+    return {
+      status: "success",
+      entry: buildPersonalEntry(representative, detailed, resultsMap, rank),
+    };
+  }
+
+  const nameCandidates = predictions.filter(
+    (prediction) => prediction.full_name.toLowerCase() === queryLower,
+  );
+  if (nameCandidates.length === 0) return { status: "not_found" };
+
+  const distinctKeys = new Set(
+    nameCandidates.map((prediction) =>
+      (prediction.student_id ?? `name:${prediction.full_name}`).toLowerCase(),
+    ),
+  );
+  if (distinctKeys.size > 1) {
+    return {
+      status: "ambiguous",
+      message:
+        "Multiple students match this name. Please search by your Student or Employee ID instead.",
+    };
+  }
+
+  const representative = nameCandidates[0];
+  const studentKey = [...distinctKeys][0];
+  const rank = rankMap.get(studentKey) ?? 0;
+  const detailed = representative.student_id
+    ? await fetchDetailedPredictions(
+        supabase,
+        "student_id",
+        representative.student_id,
+      )
+    : await fetchDetailedPredictions(
+        supabase,
+        "full_name",
+        representative.full_name,
+      );
+
+  return {
+    status: "success",
+    entry: buildPersonalEntry(representative, detailed, resultsMap, rank),
+  };
 }

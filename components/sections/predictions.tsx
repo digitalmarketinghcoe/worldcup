@@ -3,7 +3,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
-import { PartyPopper, Share2, Download, MessageCircle, CalendarDays, Trophy } from "lucide-react";
+import { PartyPopper, Share2, Download, MessageCircle, CalendarDays, Trophy, Lock } from "lucide-react";
 
 const FootballScene = dynamic(
   () => import("@/components/three/football-scene").then((m) => m.FootballScene),
@@ -21,10 +21,10 @@ import { SectionHeading, Reveal } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { COUNTRIES, PROGRAMS } from "@/lib/data";
+import { readIdentityCookie, writeIdentityCookie } from "@/lib/identity-cookie";
 import { drawShareCard } from "@/lib/share-card";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
-const COUNTRY_NAMES = new Set(COUNTRIES.map((c) => c.name));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared bits
@@ -41,37 +41,6 @@ function ErrorList({ errors }: { errors: string[] }) {
         <li key={err}>• {err}</li>
       ))}
     </ul>
-  );
-}
-
-function Textarea({
-  id,
-  placeholder,
-  value,
-  onChange,
-  maxLength,
-  rows = 4,
-  required,
-}: {
-  id?: string;
-  placeholder?: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  maxLength?: number;
-  rows?: number;
-  required?: boolean;
-}) {
-  return (
-    <textarea
-      id={id}
-      placeholder={placeholder}
-      value={value}
-      onChange={onChange}
-      maxLength={maxLength}
-      rows={rows}
-      required={required}
-      className="w-full rounded-xl border border-frost/15 bg-white/5 px-4 py-3 text-sm text-frost placeholder:text-frost/35 backdrop-blur-sm transition-colors focus:border-gold/50 focus:outline-none focus:ring-1 focus:ring-gold/30 resize-none"
-    />
   );
 }
 
@@ -178,6 +147,16 @@ function DailyMatchForm() {
     studentId: "",
     program: PROGRAMS[0],
   });
+  React.useEffect(() => {
+    const saved = readIdentityCookie();
+    if (!saved) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate the client-only cookie after mount
+    setIdentity((prev) => ({
+      fullName: prev.fullName || saved.fullName,
+      studentId: prev.studentId || saved.studentId,
+      program: prev.program === PROGRAMS[0] ? saved.program : prev.program,
+    }));
+  }, []);
   const [fixtures, setFixtures] = React.useState<TodayFixture[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [eventId, setEventId] = React.useState<string | null>(null);
@@ -234,6 +213,11 @@ function DailyMatchForm() {
         return;
       }
       setStatus("success");
+      writeIdentityCookie({
+        fullName: identity.fullName.trim(),
+        studentId: identity.studentId.trim(),
+        program: identity.program,
+      });
     } catch {
       setErrors(["Network error. Check your connection and try again."]);
       setStatus("idle");
@@ -418,82 +402,7 @@ const FINAL_INITIAL: FinalState = {
 function FinalPredictionForm() {
   const [form, setForm] = React.useState<FinalState>(FINAL_INITIAL);
   const [status, setStatus] = React.useState<"idle" | "submitting" | "success">("idle");
-  const [errors, setErrors] = React.useState<string[]>([]);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
-
-  const set = <K extends keyof FinalState>(key: K, value: FinalState[K]) =>
-    setForm((f) => ({ ...f, [key]: value }));
-
-  const clientValidate = (): string[] => {
-    const errs = validateIdentity(form);
-
-    if (!form.goldenBall.trim()) errs.push("Enter a Golden Ball pick.");
-    else if (form.goldenBall.trim().length > 80) errs.push("Golden Ball: max 80 characters.");
-
-    if (!form.goldenBoot.trim()) errs.push("Enter a Golden Boot pick.");
-    else if (form.goldenBoot.trim().length > 80) errs.push("Golden Boot: max 80 characters.");
-
-    if (!form.youngPlayer.trim()) errs.push("Enter a Young Player pick.");
-    else if (form.youngPlayer.trim().length > 80) errs.push("Young Player: max 80 characters.");
-
-    if (!form.goldenGloves.trim()) errs.push("Enter a Golden Gloves pick.");
-    else if (form.goldenGloves.trim().length > 80) errs.push("Golden Gloves: max 80 characters.");
-
-    if (!form.finalScore.trim()) errs.push("Enter the final score prediction.");
-    else if (form.finalScore.trim().length > 80) errs.push("Final score: max 80 characters.");
-
-    if (!COUNTRY_NAMES.has(form.finalTeam)) errs.push("Select a valid World Cup winner.");
-
-    if (!form.finalMatchGoalScorer.trim()) errs.push("Enter a final match goal scorer.");
-    else if (form.finalMatchGoalScorer.trim().length > 80)
-      errs.push("Goal scorer: max 80 characters.");
-
-    if (!form.bestXI.trim()) errs.push("Enter your Best XI.");
-    else if (form.bestXI.trim().length > 600) errs.push("Best XI: max 600 characters.");
-
-    if (!COUNTRY_NAMES.has(form.firstPlace)) errs.push("Select a valid 1st place country.");
-    if (!COUNTRY_NAMES.has(form.secondPlace)) errs.push("Select a valid 2nd place country.");
-    if (!COUNTRY_NAMES.has(form.thirdPlace)) errs.push("Select a valid 3rd place country.");
-
-    if (
-      COUNTRY_NAMES.has(form.firstPlace) &&
-      COUNTRY_NAMES.has(form.secondPlace) &&
-      COUNTRY_NAMES.has(form.thirdPlace) &&
-      new Set([form.firstPlace, form.secondPlace, form.thirdPlace]).size < 3
-    ) {
-      errs.push("1st, 2nd, and 3rd place must be three different countries.");
-    }
-
-    return errs;
-  };
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const errs = clientValidate();
-    if (errs.length) {
-      setErrors(errs);
-      return;
-    }
-    setErrors([]);
-    setStatus("submitting");
-    try {
-      const res = await fetch("/api/predict", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        setErrors(data.errors ?? ["Something went wrong. Try again."]);
-        setStatus("idle");
-        return;
-      }
-      setStatus("success");
-    } catch {
-      setErrors(["Network error. Check your connection and try again."]);
-      setStatus("idle");
-    }
-  };
 
   React.useEffect(() => {
     if (status === "success" && canvasRef.current) {
@@ -587,174 +496,16 @@ function FinalPredictionForm() {
   }
 
   return (
-    <form onSubmit={submit} className="glass rounded-3xl p-7 md:p-10 grid gap-6" noValidate>
-      <IdentityFields
-        value={form}
-        onChange={(p) => setForm((f) => ({ ...f, ...p }))}
-      />
-
-      {/* Tournament Awards */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <div>
-          <Label htmlFor="goldenBall">Golden Ball (Best Player)</Label>
-          <Input
-            id="goldenBall"
-            placeholder="e.g. Kylian Mbappé"
-            value={form.goldenBall}
-            onChange={(e) => set("goldenBall", e.target.value)}
-            maxLength={80}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="goldenBoot">Golden Boot (Top Scorer)</Label>
-          <Input
-            id="goldenBoot"
-            placeholder="e.g. Erling Haaland"
-            value={form.goldenBoot}
-            onChange={(e) => set("goldenBoot", e.target.value)}
-            maxLength={80}
-            required
-          />
-        </div>
+    <div className="glass rounded-3xl p-10 md:p-16 grid gap-5 place-items-center text-center">
+      <div className="grid place-items-center size-16 rounded-full bg-gold/10 border border-gold/30">
+        <Lock className="size-7 text-gold" aria-hidden="true" />
       </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <div>
-          <Label htmlFor="youngPlayer">Young Player Award</Label>
-          <Input
-            id="youngPlayer"
-            placeholder="e.g. Lamine Yamal"
-            value={form.youngPlayer}
-            onChange={(e) => set("youngPlayer", e.target.value)}
-            maxLength={80}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="goldenGloves">Golden Gloves (Best Keeper)</Label>
-          <Input
-            id="goldenGloves"
-            placeholder="e.g. Alisson Becker"
-            value={form.goldenGloves}
-            onChange={(e) => set("goldenGloves", e.target.value)}
-            maxLength={80}
-            required
-          />
-        </div>
-      </div>
-
-      {/* Final Predictions */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <div>
-          <Label htmlFor="finalScore">Final Score</Label>
-          <Input
-            id="finalScore"
-            placeholder="e.g. Argentina 2–1 France"
-            value={form.finalScore}
-            onChange={(e) => set("finalScore", e.target.value)}
-            maxLength={80}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="finalTeam">World Cup Winner</Label>
-          <Select
-            id="finalTeam"
-            value={form.finalTeam}
-            onChange={(e) => set("finalTeam", e.target.value)}
-          >
-            {SORTED_COUNTRIES.map((c) => (
-              <option key={c.code} value={c.name} className="bg-midnight">
-                {c.flag} {c.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-      </div>
-
-      <div>
-        <Label htmlFor="finalMatchGoalScorer">Final Match Goal Scorer</Label>
-        <Input
-          id="finalMatchGoalScorer"
-          placeholder="e.g. Vinicius Jr."
-          value={form.finalMatchGoalScorer}
-          onChange={(e) => set("finalMatchGoalScorer", e.target.value)}
-          maxLength={80}
-          required
-        />
-      </div>
-
-      {/* Podium */}
-      <div className="grid gap-6 md:grid-cols-3">
-        <div>
-          <Label htmlFor="firstPlace">🥇 1st Place</Label>
-          <Select
-            id="firstPlace"
-            value={form.firstPlace}
-            onChange={(e) => set("firstPlace", e.target.value)}
-          >
-            {SORTED_COUNTRIES.map((c) => (
-              <option key={c.code} value={c.name} className="bg-midnight">
-                {c.flag} {c.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="secondPlace">🥈 2nd Place</Label>
-          <Select
-            id="secondPlace"
-            value={form.secondPlace}
-            onChange={(e) => set("secondPlace", e.target.value)}
-          >
-            {SORTED_COUNTRIES.map((c) => (
-              <option key={c.code} value={c.name} className="bg-midnight">
-                {c.flag} {c.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="thirdPlace">🥉 3rd Place</Label>
-          <Select
-            id="thirdPlace"
-            value={form.thirdPlace}
-            onChange={(e) => set("thirdPlace", e.target.value)}
-          >
-            {SORTED_COUNTRIES.map((c) => (
-              <option key={c.code} value={c.name} className="bg-midnight">
-                {c.flag} {c.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-      </div>
-
-      {/* Best XI */}
-      <div>
-        <Label htmlFor="bestXI">Your Best XI</Label>
-        <Textarea
-          id="bestXI"
-          placeholder={"List your 11 players, one per line:\ne.g. Alisson · Trent · Rúben Dias · Virgil · Robertson · Rodri · Bellingham · Pedri · Salah · Mbappé · Vinicius"}
-          value={form.bestXI}
-          onChange={(e) => set("bestXI", e.target.value)}
-          maxLength={600}
-          rows={5}
-          required
-        />
-      </div>
-
-      <ErrorList errors={errors} />
-
-      <Button type="submit" size="lg" disabled={status === "submitting"} className="w-full">
-        {status === "submitting" ? "Locking In…" : "Lock In My Prediction"}
-      </Button>
-
-      <p className="text-center text-[0.7rem] uppercase tracking-[0.2em] text-frost/35">
-        One tournament entry per student · Awards verified after the Final
+      <h3 className="text-display text-3xl md:text-4xl text-frost">Predictions Closed</h3>
+      <p className="max-w-md text-frost/60 leading-relaxed">
+        Tournament Final predictions are now closed. Thanks to everyone who locked
+        in their picks — winners verified after the Final.
       </p>
-    </form>
+    </div>
   );
 }
 

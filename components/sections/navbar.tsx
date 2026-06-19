@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ const LINKS = [
   { href: "#leaderboard", label: "Standings" },
   { href: "#prizes",      label: "Prizes" },
   { href: "#hcoe",        label: "HCOE" },
+  { href: "/me",          label: "My Score" },
 ];
 
 function smoothTo(href: string) {
@@ -23,11 +24,10 @@ function smoothTo(href: string) {
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [progress, setProgress] = React.useState(0);
   const [active, setActive] = React.useState("");
   const [open, setOpen] = React.useState(false);
-
-  if (pathname?.startsWith("/admin")) return null;
 
   // Scroll progress + glass trigger
   React.useEffect(() => {
@@ -42,7 +42,9 @@ export function Navbar() {
 
   // Active section highlight
   React.useEffect(() => {
-    const targets = LINKS.map((l) => document.querySelector(l.href) as HTMLElement | null).filter(Boolean) as HTMLElement[];
+    const targets = LINKS.filter((l) => !l.href.startsWith("/"))
+      .map((l) => document.querySelector(l.href) as HTMLElement | null)
+      .filter(Boolean) as HTMLElement[];
     const obs = new IntersectionObserver(
       (entries) => {
         const hit = entries.filter((e) => e.isIntersecting);
@@ -54,7 +56,16 @@ export function Navbar() {
     return () => obs.disconnect();
   }, []);
 
-  const nav = (href: string) => { setOpen(false); smoothTo(href); };
+  const nav = (href: string) => {
+    setOpen(false);
+    if (href.startsWith("/")) {
+      router.push(href);
+    } else {
+      smoothTo(href);
+    }
+  };
+
+  if (pathname?.startsWith("/admin")) return null;
 
   return (
     <>
@@ -95,11 +106,13 @@ export function Navbar() {
                 key={l.href}
                 onClick={() => nav(l.href)}
                 className={`cursor-pointer text-[0.68rem] uppercase tracking-[0.22em] font-medium transition-colors relative ${
-                  active === l.href ? "text-gold" : "text-frost/50 hover:text-frost"
+                  (l.href.startsWith("/") ? pathname === l.href : active === l.href)
+                    ? "text-gold"
+                    : "text-frost/50 hover:text-frost"
                 }`}
               >
                 {l.label}
-                {active === l.href && (
+                {(l.href.startsWith("/") ? pathname === l.href : active === l.href) && (
                   <motion.span
                     layoutId="nav-indicator"
                     className="absolute -bottom-1 left-0 right-0 h-[1.5px] bg-gold rounded-full"
@@ -171,7 +184,9 @@ export function Navbar() {
                     transition={{ delay: i * 0.045, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                     onClick={() => nav(l.href)}
                     className={`w-full text-left cursor-pointer text-display text-2xl py-3 border-b border-frost/8 transition-colors ${
-                      active === l.href ? "text-gold" : "text-frost/75 hover:text-frost"
+                      (l.href.startsWith("/") ? pathname === l.href : active === l.href)
+                        ? "text-gold"
+                        : "text-frost/75 hover:text-frost"
                     }`}
                   >
                     {l.label}
