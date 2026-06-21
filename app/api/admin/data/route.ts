@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/admin-auth";
-import { getSupabaseAdmin } from "@/lib/supabase-server";
+import { getSupabaseAdmin, selectAll } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
@@ -18,19 +18,29 @@ export async function GET() {
     );
   }
 
-  const [predictions, matchPredictions] = await Promise.all([
-    supabase.from("predictions").select("*").order("created_at", { ascending: false }),
-    supabase.from("match_predictions").select("*").order("created_at", { ascending: false }),
-  ]);
+  // selectAll pages past PostgREST's 1000-row cap. `id` is the stable tiebreaker
+  // so rows aren't skipped/duplicated across page boundaries on equal created_at.
+  try {
+    const [predictions, matchPredictions] = await Promise.all([
+      selectAll(
+        supabase
+          .from("predictions")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false }),
+      ),
+      selectAll(
+        supabase
+          .from("match_predictions")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false }),
+      ),
+    ]);
 
-  if (predictions.error || matchPredictions.error) {
-    console.error("Admin data fetch failed:", predictions.error, matchPredictions.error);
+    return NextResponse.json({ ok: true, predictions, matchPredictions });
+  } catch (err) {
+    console.error("Admin data fetch failed:", err);
     return NextResponse.json({ ok: false, error: "Could not load data." }, { status: 502 });
   }
-
-  return NextResponse.json({
-    ok: true,
-    predictions: predictions.data ?? [],
-    matchPredictions: matchPredictions.data ?? [],
-  });
 }

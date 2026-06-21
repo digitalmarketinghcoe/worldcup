@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { selectAll } from "@/lib/supabase-server";
 import type { LeaderboardEntry } from "@/lib/data";
 import type {
   MatchResultDetail,
@@ -135,25 +136,55 @@ function longestStreak(
   return best;
 }
 
-async function buildScoredMap(supabase: SupabaseClient): Promise<{
-  resultsMap: ResultMap;
-  predictions: PredictionRow[];
-}> {
+type ScoredMap = { resultsMap: ResultMap; predictions: PredictionRow[] };
+
+async function computeScoredMap(supabase: SupabaseClient): Promise<ScoredMap> {
   let resultsMap = await syncMatchResults(supabase);
 
   if (resultsMap.size === 0) {
     resultsMap = await loadPersistedResults(supabase);
   }
 
-  const { data, error } = await supabase
-    .from("match_predictions")
-    .select("full_name, student_id, program, event_id, outcome, match_number");
-  if (error) throw error;
+  // selectAll pages past PostgREST's 1000-row cap. Without it, predictions
+  // beyond row 1000 are silently dropped, so those students/faculty vanish
+  // from the leaderboard. Order by `id` for stable, gap-free pagination.
+  const predictions = await selectAll<PredictionRow>(
+    supabase
+      .from("match_predictions")
+      .select("full_name, student_id, program, event_id, outcome, match_number")
+      .order("id", { ascending: true }),
+  );
 
-  return {
-    resultsMap,
-    predictions: (data ?? []) as PredictionRow[],
-  };
+  return { resultsMap, predictions };
+}
+
+// Scoring loads every prediction (10+ paginated reads at 10k rows) plus an
+// external fixtures sync. Both the public leaderboard and every personal
+// /api/me lookup need it, so without caching a traffic spike would fan out one
+// full-table scan per request. Memoize the scored map with a short TTL and
+// coalesce concurrent callers onto a single in-flight computation — under load
+// thousands of lookups collapse to one DB pass every SCORED_TTL_MS.
+const SCORED_TTL_MS = 30_000;
+let scoredCache: { at: number; value: ScoredMap } | null = null;
+let scoredInflight: Promise<ScoredMap> | null = null;
+
+async function buildScoredMap(supabase: SupabaseClient): Promise<ScoredMap> {
+  if (scoredCache && Date.now() - scoredCache.at < SCORED_TTL_MS) {
+    return scoredCache.value;
+  }
+  // A computation is already running — ride it instead of starting another.
+  if (scoredInflight) return scoredInflight;
+
+  scoredInflight = (async () => {
+    try {
+      const value = await computeScoredMap(supabase);
+      scoredCache = { at: Date.now(), value };
+      return value;
+    } finally {
+      scoredInflight = null;
+    }
+  })();
+  return scoredInflight;
 }
 
 function scoreAndRank(
