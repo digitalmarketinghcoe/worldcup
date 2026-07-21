@@ -28,6 +28,7 @@ export type PersonalEntry = {
   totalPoints: number;
   matchPoints: number;
   tournamentPoints: number;
+  manualAdjustment: number;
   correctPredictions: number;
   incorrectPredictions: number;
   scoredPredictions: number;

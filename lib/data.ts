@@ -55,6 +55,7 @@ export type LeaderboardEntry = {
   points: number;
   matchPoints?: number;
   tournamentPoints?: number;
+  manualAdjustment?: number;
   correct: number;
   streak: number;
 };

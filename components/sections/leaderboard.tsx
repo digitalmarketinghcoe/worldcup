@@ -62,7 +62,8 @@ function RankRow({ entry, index, maxPoints }: { entry: LeaderboardEntry; index: 
             )}
           </div>
           <p className="text-[0.68rem] uppercase tracking-[0.16em] text-frost/40">
-            {entry.program} · {entry.matchPoints ?? entry.points} daily + {entry.tournamentPoints ?? 0} tournament
+            {entry.program} · {entry.correct} correct
+            {entry.manualAdjustment ? ` · +${entry.manualAdjustment} final adjustment` : ""}
           </p>
           <div className="mt-2 h-1 rounded-full bg-frost/8 overflow-hidden">
             <motion.div
@@ -167,7 +168,8 @@ export function Leaderboard() {
                   <p className="mt-2 text-frost/50 text-sm">
                     {top.program} —{" "}
                     <span className="text-numeric text-gold">{top.points} pts</span> ·{" "}
-                    {top.matchPoints ?? top.points} daily + {top.tournamentPoints ?? 0} tournament
+                    {top.correct} correct predictions
+                    {top.manualAdjustment ? ` · +${top.manualAdjustment} final adjustment` : ""}
                     {top.streak > 0 && ` · ${top.streak}-match streak`}
                   </p>
                 </div>

@@ -160,7 +160,7 @@ export function Hero() {
           USA · Canada · Mexico — June 11 to July 19, 2026
         </motion.p>
 
-        <h1
+        <h2
           className="text-display mt-8 text-frost"
           style={{ fontSize: "var(--fs-hero)" }}
         >
@@ -180,7 +180,7 @@ export function Hero() {
           >
             Meets Football
           </motion.span>
-        </h1>
+        </h2>
 
         <motion.p
           initial={{ opacity: 0, y: 24 }}

@@ -14,6 +14,7 @@ import {
   scoreTournamentPrediction,
   type TournamentPrediction,
 } from "@/lib/tournament-scoring";
+import { applyFinalPointsOverride } from "@/lib/final-winners";
 
 export const POINTS_PER_CORRECT = 3;
 export const REFRESH_MS = 12 * 60 * 60 * 1000; // 12 hours
@@ -234,6 +235,7 @@ function scoreAndRank(
 } {
   type Acc = {
     name: string;
+    studentId: string | null;
     program: string;
     matchCorrect: number;
     tournamentCorrect: number;
@@ -259,6 +261,7 @@ function scoreAndRank(
 
     const acc = byStudent.get(key) ?? {
       name: p.full_name,
+      studentId: p.student_id,
       program: p.program,
       matchCorrect: 0,
       tournamentCorrect: 0,
@@ -279,6 +282,7 @@ function scoreAndRank(
     const key = (prediction.student_id ?? `name:${prediction.full_name}`).toLowerCase();
     const acc = byStudent.get(key) ?? {
       name: prediction.full_name,
+      studentId: prediction.student_id,
       program: prediction.program,
       matchCorrect: 0,
       tournamentCorrect: 0,
@@ -292,15 +296,21 @@ function scoreAndRank(
   }
 
   const entries = [...byStudent.values()]
-    .map((a) => ({
-      name: a.name,
-      program: a.program,
-      points: a.matchCorrect * POINTS_PER_CORRECT + a.tournamentPoints,
-      matchPoints: a.matchCorrect * POINTS_PER_CORRECT,
-      tournamentPoints: a.tournamentPoints,
-      correct: a.matchCorrect + a.tournamentCorrect,
-      streak: longestStreak(a.calls),
-    }))
+    .map((a) => {
+      const matchPoints = a.matchCorrect * POINTS_PER_CORRECT;
+      const computedPoints = matchPoints + a.tournamentPoints;
+      const points = applyFinalPointsOverride(a.name, a.studentId, computedPoints);
+      return {
+        name: a.name,
+        program: a.program,
+        points,
+        matchPoints,
+        tournamentPoints: a.tournamentPoints,
+        manualAdjustment: points - computedPoints,
+        correct: a.matchCorrect + a.tournamentCorrect,
+        streak: longestStreak(a.calls),
+      };
+    })
     .sort(
       (a, b) =>
         b.points - a.points ||
@@ -310,12 +320,15 @@ function scoreAndRank(
     .map((e, i) => ({ rank: i + 1, ...e }));
 
   const rankedKeys = [...byStudent.entries()]
-    .map(([key, a]) => ({
-      key,
-      name: a.name,
-      points: a.matchCorrect * POINTS_PER_CORRECT + a.tournamentPoints,
-      correct: a.matchCorrect + a.tournamentCorrect,
-    }))
+    .map(([key, a]) => {
+      const computedPoints = a.matchCorrect * POINTS_PER_CORRECT + a.tournamentPoints;
+      return {
+        key,
+        name: a.name,
+        points: applyFinalPointsOverride(a.name, a.studentId, computedPoints),
+        correct: a.matchCorrect + a.tournamentCorrect,
+      };
+    })
     .sort(
       (a, b) =>
         b.points - a.points ||
@@ -401,15 +414,22 @@ function buildPersonalEntry(
   const tournamentScore = tournamentPrediction
     ? scoreTournamentPrediction(tournamentPrediction)
     : { correct: 0, points: 0 };
+  const computedPoints = correctPredictions * POINTS_PER_CORRECT + tournamentScore.points;
+  const totalPoints = applyFinalPointsOverride(
+    representative.full_name,
+    representative.student_id,
+    computedPoints,
+  );
 
   return {
     fullName: representative.full_name,
     program: representative.program,
     maskedStudentId: maskStudentId(representative.student_id),
     rank,
-    totalPoints: correctPredictions * POINTS_PER_CORRECT + tournamentScore.points,
+    totalPoints,
     matchPoints: correctPredictions * POINTS_PER_CORRECT,
     tournamentPoints: tournamentScore.points,
+    manualAdjustment: totalPoints - computedPoints,
     correctPredictions: correctPredictions + tournamentScore.correct,
     incorrectPredictions: finishedResults.length - correctPredictions,
     scoredPredictions: finishedResults.length,
@@ -420,7 +440,10 @@ function buildPersonalEntry(
         correct: result.correct,
       })),
     ),
-    scoringRule: "3 points per correct daily or tournament prediction",
+    scoringRule:
+      totalPoints === computedPoints
+        ? "3 points per correct daily or tournament prediction"
+        : "3 points per correct prediction, plus the approved final adjustment",
     finishedResults,
     pendingPredictions,
   };

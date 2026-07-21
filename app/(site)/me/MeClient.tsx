@@ -182,6 +182,9 @@ function PersonalScoreCard({ entry }: { entry: PersonalEntry }) {
         <StatCell label="Points" value={entry.totalPoints} accent="gold" />
         <StatCell label="Daily Points" value={entry.matchPoints} />
         <StatCell label="Tournament Points" value={entry.tournamentPoints} />
+        {entry.manualAdjustment !== 0 && (
+          <StatCell label="Final Adjustment" value={entry.manualAdjustment} />
+        )}
         <StatCell label="Correct" value={entry.correctPredictions} />
         <StatCell label="Best Streak" value={entry.bestStreak} />
         <StatCell label="Predictions Scored" value={entry.scoredPredictions} />

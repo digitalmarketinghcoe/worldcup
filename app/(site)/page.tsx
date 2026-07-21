@@ -8,6 +8,7 @@ import { Prizes } from "@/components/sections/prizes";
 import { HcoeShowcase } from "@/components/sections/hcoe-showcase";
 import { Footer } from "@/components/sections/footer";
 import { VideoTransition } from "@/components/sections/video-transition";
+import { Winners } from "@/components/sections/winners";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://worldcup.hcoe.edu.np";
 
@@ -67,6 +68,7 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <main className="flex-1">
+        <Winners />
         <Hero />
         <Intro />
         <Countdown />
