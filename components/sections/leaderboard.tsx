@@ -62,7 +62,7 @@ function RankRow({ entry, index, maxPoints }: { entry: LeaderboardEntry; index: 
             )}
           </div>
           <p className="text-[0.68rem] uppercase tracking-[0.16em] text-frost/40">
-            {entry.program} · {entry.correct} correct
+            {entry.program} · {entry.matchPoints ?? entry.points} daily + {entry.tournamentPoints ?? 0} tournament
           </p>
           <div className="mt-2 h-1 rounded-full bg-frost/8 overflow-hidden">
             <motion.div
@@ -119,7 +119,7 @@ export function Leaderboard() {
         <SectionHeading
           kicker="Live Standings"
           title="The Prediction Leaderboard"
-          copy="Every correct match winner call earns 3 points. Streaks multiply the glory. Top predictors take home real prizes."
+          copy="Final standings combine daily match picks and tournament predictions. Every correct scored field earns 3 points."
         />
 
         {loading ? (
@@ -167,7 +167,7 @@ export function Leaderboard() {
                   <p className="mt-2 text-frost/50 text-sm">
                     {top.program} —{" "}
                     <span className="text-numeric text-gold">{top.points} pts</span> ·{" "}
-                    {top.correct} correct calls
+                    {top.matchPoints ?? top.points} daily + {top.tournamentPoints ?? 0} tournament
                     {top.streak > 0 && ` · ${top.streak}-match streak`}
                   </p>
                 </div>

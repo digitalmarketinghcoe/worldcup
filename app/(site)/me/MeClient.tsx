@@ -180,6 +180,8 @@ function PersonalScoreCard({ entry }: { entry: PersonalEntry }) {
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCell label="Points" value={entry.totalPoints} accent="gold" />
+        <StatCell label="Daily Points" value={entry.matchPoints} />
+        <StatCell label="Tournament Points" value={entry.tournamentPoints} />
         <StatCell label="Correct" value={entry.correctPredictions} />
         <StatCell label="Best Streak" value={entry.bestStreak} />
         <StatCell label="Predictions Scored" value={entry.scoredPredictions} />

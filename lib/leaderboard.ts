@@ -10,19 +10,29 @@ import type {
 } from "@/lib/me-types";
 import { getFixtures } from "@/lib/fixtures-api";
 import { fixtureLabel } from "@/lib/fixtures";
+import {
+  scoreTournamentPrediction,
+  type TournamentPrediction,
+} from "@/lib/tournament-scoring";
 
 export const POINTS_PER_CORRECT = 3;
 export const REFRESH_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 type Outcome = "home" | "draw" | "away";
 
-type PredictionRow = {
+type MatchPredictionRow = {
   full_name: string;
   student_id: string | null;
   program: string;
   event_id: string;
   outcome: Outcome;
   match_number: number;
+};
+
+type TournamentPredictionRow = TournamentPrediction & {
+  full_name: string;
+  student_id: string | null;
+  program: string;
 };
 
 type ResultRow = {
@@ -32,26 +42,31 @@ type ResultRow = {
   match_number: number | null;
 };
 
-// Keyed by match_number (stable across API providers — event_id differs between
-// TheSportsDB and ESPN, but match_number is always the official FIFA match number).
-type ResultMap = Map<number, { outcome: Outcome; dateMs: number; matchNumber: number }>;
+// Index by both provider event ID and official match number. Current ESPN rows
+// use the exact event ID; match number keeps legacy-provider predictions valid.
+type MatchResult = { outcome: Outcome; dateMs: number; matchNumber: number };
+type ResultIndex = {
+  byEventId: Map<string, MatchResult>;
+  byMatchNumber: Map<number, MatchResult>;
+};
 
-type DetailedPredictionRow = PredictionRow & {
+type DetailedPredictionRow = MatchPredictionRow & {
   match_label: string | null;
   home_team: string | null;
   away_team: string | null;
 };
 
 /**
- * Fetch finished matches from TheSportsDB and upsert into match_results.
+ * Fetch finished matches from ESPN and upsert into match_results.
  * Returns an in-memory map for immediate use — avoids a round-trip read.
  * Idempotent: safe to call on every 12h refresh.
  */
-export async function syncMatchResults(supabase: SupabaseClient): Promise<ResultMap> {
+export async function syncMatchResults(supabase: SupabaseClient): Promise<ResultIndex> {
   const fixtures = await getFixtures();
 
   const rows = [];
-  const map: ResultMap = new Map();
+  const byEventId = new Map<string, MatchResult>();
+  const byMatchNumber = new Map<number, MatchResult>();
 
   for (const f of fixtures) {
     if (
@@ -78,11 +93,16 @@ export async function syncMatchResults(supabase: SupabaseClient): Promise<Result
         synced_at: new Date().toISOString(),
       });
 
-      map.set(f.matchNumber, {
+      const result = {
         outcome,
         dateMs: new Date(f.date).getTime(),
         matchNumber: f.matchNumber,
-      });
+      };
+      byEventId.set(f.eventId, result);
+      // Some knockout fixtures could not be matched to the original static
+      // schedule. Do not let their generated 900-series numbers overwrite an
+      // official match-number result.
+      if (f.matchNumber <= 104) byMatchNumber.set(f.matchNumber, result);
     }
   }
 
@@ -93,31 +113,34 @@ export async function syncMatchResults(supabase: SupabaseClient): Promise<Result
     if (error) console.error("match_results upsert failed:", error);
   }
 
-  return map;
+  return { byEventId, byMatchNumber };
 }
 
 /**
  * Load all previously persisted match results from Supabase.
- * Used as fallback when TheSportsDB is unavailable.
+ * Used as fallback when ESPN is unavailable.
  */
-async function loadPersistedResults(supabase: SupabaseClient): Promise<ResultMap> {
-  const map: ResultMap = new Map();
+async function loadPersistedResults(supabase: SupabaseClient): Promise<ResultIndex> {
+  const byEventId = new Map<string, MatchResult>();
+  const byMatchNumber = new Map<number, MatchResult>();
   const { data, error } = await supabase
     .from("match_results")
     .select("event_id, outcome, kicked_off_at, match_number");
   if (error) {
     console.error("match_results read failed:", error);
-    return map;
+    return { byEventId, byMatchNumber };
   }
   for (const r of (data ?? []) as ResultRow[]) {
     if (r.match_number == null) continue;
-    map.set(r.match_number, {
+    const result = {
       outcome: r.outcome,
       dateMs: r.kicked_off_at ? new Date(r.kicked_off_at).getTime() : 0,
       matchNumber: r.match_number,
-    });
+    };
+    byEventId.set(r.event_id, result);
+    if (r.match_number <= 104) byMatchNumber.set(r.match_number, result);
   }
-  return map;
+  return { byEventId, byMatchNumber };
 }
 
 /** Longest run of consecutive correct calls, ordered by match kickoff. */
@@ -136,26 +159,40 @@ function longestStreak(
   return best;
 }
 
-type ScoredMap = { resultsMap: ResultMap; predictions: PredictionRow[] };
+type ScoredMap = {
+  results: ResultIndex;
+  matchPredictions: MatchPredictionRow[];
+  tournamentPredictions: TournamentPredictionRow[];
+};
 
 async function computeScoredMap(supabase: SupabaseClient): Promise<ScoredMap> {
-  let resultsMap = await syncMatchResults(supabase);
+  let results = await syncMatchResults(supabase);
 
-  if (resultsMap.size === 0) {
-    resultsMap = await loadPersistedResults(supabase);
+  if (results.byEventId.size === 0 && results.byMatchNumber.size === 0) {
+    results = await loadPersistedResults(supabase);
   }
 
   // selectAll pages past PostgREST's 1000-row cap. Without it, predictions
   // beyond row 1000 are silently dropped, so those students/faculty vanish
   // from the leaderboard. Order by `id` for stable, gap-free pagination.
-  const predictions = await selectAll<PredictionRow>(
-    supabase
-      .from("match_predictions")
-      .select("full_name, student_id, program, event_id, outcome, match_number")
-      .order("id", { ascending: true }),
-  );
+  const [matchPredictions, tournamentPredictions] = await Promise.all([
+    selectAll<MatchPredictionRow>(
+      supabase
+        .from("match_predictions")
+        .select("full_name, student_id, program, event_id, outcome, match_number")
+        .order("id", { ascending: true }),
+    ),
+    selectAll<TournamentPredictionRow>(
+      supabase
+        .from("predictions")
+        .select(
+          "full_name, student_id, program, golden_ball, golden_boot, young_player, golden_gloves, final_score, final_team, final_match_goal_scorer, first_place, second_place, third_place",
+        )
+        .order("id", { ascending: true }),
+    ),
+  ]);
 
-  return { resultsMap, predictions };
+  return { results, matchPredictions, tournamentPredictions };
 }
 
 // Scoring loads every prediction (10+ paginated reads at 10k rows) plus an
@@ -188,8 +225,9 @@ async function buildScoredMap(supabase: SupabaseClient): Promise<ScoredMap> {
 }
 
 function scoreAndRank(
-  predictions: PredictionRow[],
-  resultsMap: ResultMap,
+  matchPredictions: MatchPredictionRow[],
+  tournamentPredictions: TournamentPredictionRow[],
+  results: ResultIndex,
 ): {
   entries: LeaderboardEntry[];
   rankMap: Map<string, number>;
@@ -197,14 +235,20 @@ function scoreAndRank(
   type Acc = {
     name: string;
     program: string;
-    correct: number;
+    matchCorrect: number;
+    tournamentCorrect: number;
+    tournamentPoints: number;
     calls: { dateMs: number; matchNumber: number; correct: boolean }[];
   };
   const byStudent = new Map<string, Acc>();
   const seen = new Set<string>();
 
-  for (const p of predictions) {
-    const actual = resultsMap.get(p.match_number);
+  for (const p of matchPredictions) {
+    // ESPN event IDs are exact. Match number remains the compatibility path
+    // for the handful of early predictions stored with legacy provider IDs.
+    const actual =
+      results.byEventId.get(p.event_id) ??
+      results.byMatchNumber.get(p.match_number);
     if (!actual) continue; // match not finished yet — skip
 
     // Faculty without student ID falls back to name as dedup key
@@ -216,11 +260,13 @@ function scoreAndRank(
     const acc = byStudent.get(key) ?? {
       name: p.full_name,
       program: p.program,
-      correct: 0,
+      matchCorrect: 0,
+      tournamentCorrect: 0,
+      tournamentPoints: 0,
       calls: [],
     };
     const isCorrect = p.outcome === actual.outcome;
-    if (isCorrect) acc.correct += 1;
+    if (isCorrect) acc.matchCorrect += 1;
     acc.calls.push({
       dateMs: actual.dateMs,
       matchNumber: actual.matchNumber,
@@ -229,12 +275,30 @@ function scoreAndRank(
     byStudent.set(key, acc);
   }
 
+  for (const prediction of tournamentPredictions) {
+    const key = (prediction.student_id ?? `name:${prediction.full_name}`).toLowerCase();
+    const acc = byStudent.get(key) ?? {
+      name: prediction.full_name,
+      program: prediction.program,
+      matchCorrect: 0,
+      tournamentCorrect: 0,
+      tournamentPoints: 0,
+      calls: [],
+    };
+    const tournamentScore = scoreTournamentPrediction(prediction);
+    acc.tournamentCorrect = tournamentScore.correct;
+    acc.tournamentPoints = tournamentScore.points;
+    byStudent.set(key, acc);
+  }
+
   const entries = [...byStudent.values()]
     .map((a) => ({
       name: a.name,
       program: a.program,
-      points: a.correct * POINTS_PER_CORRECT,
-      correct: a.correct,
+      points: a.matchCorrect * POINTS_PER_CORRECT + a.tournamentPoints,
+      matchPoints: a.matchCorrect * POINTS_PER_CORRECT,
+      tournamentPoints: a.tournamentPoints,
+      correct: a.matchCorrect + a.tournamentCorrect,
       streak: longestStreak(a.calls),
     }))
     .sort(
@@ -249,8 +313,8 @@ function scoreAndRank(
     .map(([key, a]) => ({
       key,
       name: a.name,
-      points: a.correct * POINTS_PER_CORRECT,
-      correct: a.correct,
+      points: a.matchCorrect * POINTS_PER_CORRECT + a.tournamentPoints,
+      correct: a.matchCorrect + a.tournamentCorrect,
     }))
     .sort(
       (a, b) =>
@@ -285,9 +349,10 @@ async function fetchDetailedPredictions(
 }
 
 function buildPersonalEntry(
-  representative: PredictionRow,
+  representative: Pick<MatchPredictionRow, "full_name" | "student_id" | "program">,
   detailed: DetailedPredictionRow[],
-  resultsMap: ResultMap,
+  results: ResultIndex,
+  tournamentPrediction: TournamentPredictionRow | undefined,
   rank: number,
 ): PersonalEntry {
   const seen = new Set<number>();
@@ -298,7 +363,9 @@ function buildPersonalEntry(
     if (seen.has(prediction.match_number)) continue;
     seen.add(prediction.match_number);
 
-    const actual = resultsMap.get(prediction.match_number);
+    const actual =
+      results.byEventId.get(prediction.event_id) ??
+      results.byMatchNumber.get(prediction.match_number);
     const matchLabel = prediction.match_label ?? `Match ${prediction.match_number}`;
     const homeTeam = prediction.home_team ?? "Home team";
     const awayTeam = prediction.away_team ?? "Away team";
@@ -331,14 +398,19 @@ function buildPersonalEntry(
     (a, b) => a.kickoffMs - b.kickoffMs || a.matchNumber - b.matchNumber,
   );
   const correctPredictions = finishedResults.filter((result) => result.correct).length;
+  const tournamentScore = tournamentPrediction
+    ? scoreTournamentPrediction(tournamentPrediction)
+    : { correct: 0, points: 0 };
 
   return {
     fullName: representative.full_name,
     program: representative.program,
     maskedStudentId: maskStudentId(representative.student_id),
     rank,
-    totalPoints: correctPredictions * POINTS_PER_CORRECT,
-    correctPredictions,
+    totalPoints: correctPredictions * POINTS_PER_CORRECT + tournamentScore.points,
+    matchPoints: correctPredictions * POINTS_PER_CORRECT,
+    tournamentPoints: tournamentScore.points,
+    correctPredictions: correctPredictions + tournamentScore.correct,
     incorrectPredictions: finishedResults.length - correctPredictions,
     scoredPredictions: finishedResults.length,
     bestStreak: longestStreak(
@@ -348,21 +420,22 @@ function buildPersonalEntry(
         correct: result.correct,
       })),
     ),
-    scoringRule: "3 points per correct match prediction",
+    scoringRule: "3 points per correct daily or tournament prediction",
     finishedResults,
     pendingPredictions,
   };
 }
 
 /**
- * Build the ranked leaderboard from match predictions vs. finished fixture results.
- * 3 points per correctly predicted match winner.
+ * Build the final ranked leaderboard from daily match and tournament predictions.
+ * Every correct scored field earns 3 points.
  */
 export async function computeLeaderboard(
   supabase: SupabaseClient,
 ): Promise<LeaderboardEntry[]> {
-  const { resultsMap, predictions } = await buildScoredMap(supabase);
-  return scoreAndRank(predictions, resultsMap).entries;
+  const { results, matchPredictions, tournamentPredictions } =
+    await buildScoredMap(supabase);
+  return scoreAndRank(matchPredictions, tournamentPredictions, results).entries;
 }
 
 export async function lookupPersonalScore(
@@ -370,8 +443,14 @@ export async function lookupPersonalScore(
   query: string,
 ): Promise<MeResponse> {
   const queryLower = query.toLowerCase();
-  const { resultsMap, predictions } = await buildScoredMap(supabase);
-  const { rankMap } = scoreAndRank(predictions, resultsMap);
+  const { results, matchPredictions, tournamentPredictions } =
+    await buildScoredMap(supabase);
+  const { rankMap } = scoreAndRank(
+    matchPredictions,
+    tournamentPredictions,
+    results,
+  );
+  const predictions = [...matchPredictions, ...tournamentPredictions];
 
   const idCandidates = predictions.filter(
     (prediction) =>
@@ -387,9 +466,19 @@ export async function lookupPersonalScore(
       "student_id",
       representative.student_id!,
     );
+    const tournamentPrediction = tournamentPredictions.find(
+      (prediction) =>
+        prediction.student_id?.toLowerCase() === studentKey,
+    );
     return {
       status: "success",
-      entry: buildPersonalEntry(representative, detailed, resultsMap, rank),
+      entry: buildPersonalEntry(
+        representative,
+        detailed,
+        results,
+        tournamentPrediction,
+        rank,
+      ),
     };
   }
 
@@ -425,9 +514,20 @@ export async function lookupPersonalScore(
         "full_name",
         representative.full_name,
       );
+  const tournamentPrediction = tournamentPredictions.find((prediction) =>
+    representative.student_id
+      ? prediction.student_id?.toLowerCase() === representative.student_id.toLowerCase()
+      : prediction.full_name.toLowerCase() === representative.full_name.toLowerCase(),
+  );
 
   return {
     status: "success",
-    entry: buildPersonalEntry(representative, detailed, resultsMap, rank),
+    entry: buildPersonalEntry(
+      representative,
+      detailed,
+      results,
+      tournamentPrediction,
+      rank,
+    ),
   };
 }

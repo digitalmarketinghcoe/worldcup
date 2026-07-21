@@ -26,6 +26,8 @@ export type PersonalEntry = {
   maskedStudentId: string;
   rank: number;
   totalPoints: number;
+  matchPoints: number;
+  tournamentPoints: number;
   correctPredictions: number;
   incorrectPredictions: number;
   scoredPredictions: number;
