@@ -15,6 +15,19 @@ export const FINAL_WINNERS = [
   },
 ] as const;
 
+const ADDITIONAL_POINT_OVERRIDES = [
+  {
+    name: "Abhinav Paudel",
+    studentId: "HCE080BCE027",
+    points: 178,
+  },
+  {
+    name: "Ayush Shah",
+    studentId: "HCE080BCE007",
+    points: 174,
+  },
+] as const;
+
 function normalizeName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -24,10 +37,10 @@ export function applyFinalPointsOverride(
   studentId: string | null,
   computedPoints: number,
 ): number {
-  const winner = FINAL_WINNERS.find(
+  const override = [...FINAL_WINNERS, ...ADDITIONAL_POINT_OVERRIDES].find(
     (entry) =>
       entry.studentId.toLowerCase() === studentId?.trim().toLowerCase() &&
       normalizeName(entry.name) === normalizeName(name),
   );
-  return winner?.points ?? computedPoints;
+  return override?.points ?? computedPoints;
 }

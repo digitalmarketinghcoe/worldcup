@@ -183,7 +183,10 @@ function PersonalScoreCard({ entry }: { entry: PersonalEntry }) {
         <StatCell label="Daily Points" value={entry.matchPoints} />
         <StatCell label="Tournament Points" value={entry.tournamentPoints} />
         {entry.manualAdjustment !== 0 && (
-          <StatCell label="Final Adjustment" value={entry.manualAdjustment} />
+          <StatCell
+            label="Final Adjustment"
+            value={`${entry.manualAdjustment > 0 ? "+" : ""}${entry.manualAdjustment}`}
+          />
         )}
         <StatCell label="Correct" value={entry.correctPredictions} />
         <StatCell label="Best Streak" value={entry.bestStreak} />
@@ -235,7 +238,7 @@ function StatCell({
   accent,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   accent?: "gold";
 }) {
   return (
